@@ -1,11 +1,13 @@
 import React from 'react'
-import { fetchReports, fetchExpenses, fetchWallets } from '../api'
-import { TrendingDown, Wallet, Building2, User, BarChart3, ArrowUpRight, Search } from 'lucide-react'
+import { fetchReports, fetchExpenses, fetchWallets, downloadBranchReport, downloadOrderedByReport, downloadManagerReport } from '../api'
+import { TrendingDown, Wallet, Building2, User, BarChart3, ArrowUpRight, Search, Download, UserSearch, X } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 const fmt = (n: number) => `₹${Number(n || 0).toLocaleString('en-IN')}`
 
 const CATEGORY_COLOR: Record<string, string> = {
   Materials: 'bg-amber-100 text-amber-700 border-amber-200',
+  Labour:    'bg-blue-100 text-blue-700 border-blue-200',
   Labor:     'bg-blue-100 text-blue-700 border-blue-200',
   Travel:    'bg-purple-100 text-purple-700 border-purple-200',
   Equipment: 'bg-rose-100 text-rose-700 border-rose-200',
@@ -116,11 +118,60 @@ function SiteWalletCard({ site, index }: { site: any; index: number }) {
   )
 }
 
+// ── Download reports menu ────────────────────────────────────────────────────
+function DownloadMenu() {
+  const [open, setOpen] = React.useState(false)
+  const [busy, setBusy] = React.useState<string | null>(null)
+  const ref = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  const options = [
+    { key: 'branch',  label: 'Branch-wise (totals & profit)', run: downloadBranchReport },
+    { key: 'person',  label: 'Person-wise (Ordered By)',       run: downloadOrderedByReport },
+    { key: 'manager', label: 'Manager-wise',                   run: downloadManagerReport },
+  ]
+
+  async function handle(opt: typeof options[number]) {
+    setBusy(opt.key)
+    try { await opt.run(); toast.success('Report downloaded') }
+    catch { toast.error('Failed to download report') }
+    finally { setBusy(null); setOpen(false) }
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+        <Download size={14} /> Download Reports
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-20">
+          {options.map(opt => (
+            <button key={opt.key} onClick={() => handle(opt)} disabled={busy !== null}
+              className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50 flex items-center justify-between">
+              {opt.label}
+              {busy === opt.key && <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Reports() {
   const [expenses,   setExpenses]   = React.useState<any[]>([])
   const [wallets,    setWallets]    = React.useState<any[]>([])
   const [siteFilter, setSiteFilter] = React.useState('All')
+  const [personFilter, setPersonFilter] = React.useState('All')
   const [search,     setSearch]     = React.useState('')
   const [loading,    setLoading]    = React.useState(true)
 
@@ -131,10 +182,12 @@ export default function Reports() {
   }, [])
 
   const allSites = ['All', ...Array.from(new Set(expenses.map((e: any) => e.site?.name).filter(Boolean)))]
+  const allPeople = Array.from(new Set(expenses.map((e: any) => e.orderedBy).filter(Boolean))).sort()
 
   const filtered = expenses
     .filter((e: any) => siteFilter === 'All' || e.site?.name === siteFilter)
-    .filter((e: any) => !search || e.category?.toLowerCase().includes(search.toLowerCase()) || e.site?.name?.toLowerCase().includes(search.toLowerCase()) || e.notes?.toLowerCase().includes(search.toLowerCase()))
+    .filter((e: any) => personFilter === 'All' || e.orderedBy === personFilter)
+    .filter((e: any) => !search || e.category?.toLowerCase().includes(search.toLowerCase()) || e.site?.name?.toLowerCase().includes(search.toLowerCase()) || e.notes?.toLowerCase().includes(search.toLowerCase()) || e.orderedBy?.toLowerCase().includes(search.toLowerCase()))
 
   const totalCompany  = filtered.reduce((s: number, e: any) => s + (e.companyPaid  || 0), 0)
   const totalPersonal = filtered.reduce((s: number, e: any) => s + (e.personalPaid || 0), 0)
@@ -149,7 +202,7 @@ export default function Reports() {
         style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f2a4a 100%)' }}>
         <div className="absolute inset-0 opacity-25"
           style={{ backgroundImage: 'radial-gradient(circle at 15% 50%, #3b82f6 0%, transparent 45%), radial-gradient(circle at 85% 30%, #6366f1 0%, transparent 40%)' }} />
-        <div className="relative z-10 flex items-center justify-between">
+        <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <BarChart3 size={14} className="text-blue-300" />
@@ -158,9 +211,12 @@ export default function Reports() {
             <h1 className="text-3xl font-extrabold">Reports</h1>
             <p className="text-blue-200 text-sm mt-1">Site-wise expense analysis &amp; financial overview</p>
           </div>
-          <div className="hidden md:block text-right">
-            <p className="text-blue-300 text-xs">Total entries</p>
-            <p className="text-5xl font-black">{expenses.length}</p>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:block text-right">
+              <p className="text-blue-300 text-xs">Total entries</p>
+              <p className="text-5xl font-black">{expenses.length}</p>
+            </div>
+            <DownloadMenu />
           </div>
         </div>
       </div>
@@ -225,6 +281,18 @@ export default function Reports() {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
+            {/* Ordered By filter */}
+            <div className="relative w-full sm:w-48">
+              <UserSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <select
+                className="border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full appearance-none bg-white"
+                value={personFilter}
+                onChange={e => setPersonFilter(e.target.value)}
+              >
+                <option value="All">Ordered by: Anyone</option>
+                {allPeople.map((p: string) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
             {/* Site filter pills */}
             <div className="flex gap-1.5 flex-wrap">
               {allSites.map(s => (
@@ -237,11 +305,24 @@ export default function Reports() {
           </div>
         </div>
 
+        {/* Ordered-by summary banner */}
+        {personFilter !== 'All' && (
+          <div className="mx-6 mt-4 flex items-center justify-between gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-2 text-sm text-blue-700">
+              <UserSearch size={15} />
+              <span><strong>{personFilter}</strong> ordered {filtered.length} expense{filtered.length !== 1 ? 's' : ''} totaling <strong>{fmt(totalAll)}</strong></span>
+            </div>
+            <button onClick={() => setPersonFilter('All')} className="text-blue-400 hover:text-blue-600">
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50/80">
-                {['#', 'Site', 'Category', 'Total', 'Company', 'Personal', 'Type', 'Date'].map(h => (
+                {['#', 'Site', 'Category', 'Ordered By', 'Total', 'Company', 'Personal', 'Type', 'Date'].map(h => (
                   <th key={h} className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3 text-left whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -257,6 +338,9 @@ export default function Reports() {
                     </td>
                     <td className="px-4 py-3.5">
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${CATEGORY_COLOR[ex.category] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>{ex.category}</span>
+                    </td>
+                    <td className="px-4 py-3.5 text-slate-600">
+                      {ex.orderedBy || <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3.5 font-bold text-slate-800">{fmt(ex.amount)}</td>
                     <td className="px-4 py-3.5">
@@ -283,7 +367,7 @@ export default function Reports() {
               })}
               {!filtered.length && (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center">
+                  <td colSpan={9} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-3 text-slate-400">
                       <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center">
                         <BarChart3 size={20} />
@@ -298,7 +382,7 @@ export default function Reports() {
             {filtered.length > 0 && (
               <tfoot>
                 <tr className="bg-gradient-to-r from-slate-50 to-blue-50/30 border-t-2 border-slate-100">
-                  <td colSpan={3} className="px-4 py-4">
+                  <td colSpan={4} className="px-4 py-4">
                     <span className="font-bold text-slate-700">Total</span>
                     <span className="ml-2 text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{filtered.length} entries</span>
                   </td>

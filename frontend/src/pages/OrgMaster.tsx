@@ -304,7 +304,7 @@ function DocumentsSection() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <a href={`http://localhost:4000${doc.fileUrl}`} target="_blank" rel="noreferrer"
+                    <a href={`http://localhost:4001${doc.fileUrl}`} target="_blank" rel="noreferrer"
                       className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                       title="View / Download">
                       <FileImage size={15} />

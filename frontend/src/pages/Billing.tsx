@@ -1,14 +1,37 @@
 import React from 'react'
 import toast from 'react-hot-toast'
 import { Plus, Trash2, Printer, FileText, X, ArrowLeft, RefreshCw, Eye } from 'lucide-react'
+import { FaWhatsapp } from 'react-icons/fa'
+import { SiGmail } from 'react-icons/si'
 import { fetchBills, fetchNextBillNo, fetchHsnCodes, createBill, deleteBill } from '../api'
 import InvoiceDocument from '../components/InvoiceDocument'
 
 const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS']
 
-type Item = { lineNo: number; description: string; hsnCode: string; unit: string; quantity: string; unitPrice: string }
+type Item = { description: string; hsnCode: string; unit: string; quantity: string; unitPrice: string }
 
-const emptyItem = (line: number): Item => ({ lineNo: line, description: '', hsnCode: '', unit: 'EA', quantity: '', unitPrice: '' })
+const emptyItem = (): Item => ({ description: '', hsnCode: '', unit: 'EA', quantity: '', unitPrice: '' })
+
+// Share a text summary of the invoice — there's no hosted PDF to attach/link,
+// so this sends the key details rather than the invoice file itself.
+function buildShareMessage(bill: any) {
+  const amount = `₹${Number(bill.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const date = new Date(bill.date).toLocaleDateString('en-GB')
+  return `Hi ${bill.billToName || ''},\n\nHere are your invoice details from We Work Constructions:\n\nInvoice No: ${bill.invoiceNumber}\nDate: ${date}\nAmount: ${amount}\n\nThank you for your business!`
+}
+
+function shareOnWhatsApp(bill: any) {
+  const digits = String(bill.billToMobile || '').replace(/\D/g, '')
+  const phone = digits ? (digits.length === 10 ? `91${digits}` : digits) : ''
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(buildShareMessage(bill))}`
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function shareViaEmail(bill: any) {
+  const subject = `Invoice ${bill.invoiceNumber} from We Work Constructions`
+  const url = `mailto:${bill.billToEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(buildShareMessage(bill))}`
+  window.location.href = url
+}
 
 export default function Billing() {
   const [view, setView] = React.useState<'list' | 'create'>('list')
@@ -22,13 +45,28 @@ export default function Billing() {
   const [billToName, setBillToName] = React.useState('')
   const [billToAddress, setBillToAddress] = React.useState('')
   const [billToGst, setBillToGst] = React.useState('')
+  const [billToMobile, setBillToMobile] = React.useState('')
+  const [billToEmail, setBillToEmail] = React.useState('')
+  const [billToState, setBillToState] = React.useState('Maharashtra')
+  const [sameAsBilling, setSameAsBilling] = React.useState(true)
+  const [shipToName, setShipToName] = React.useState('')
+  const [shipToAddress, setShipToAddress] = React.useState('')
+  const [shipToGst, setShipToGst] = React.useState('')
+  const [shipToState, setShipToState] = React.useState('')
   const [poNumber, setPoNumber] = React.useState('')
   const [poDate, setPoDate] = React.useState('')
   const [vendorCode, setVendorCode] = React.useState('')
   const [projectCode, setProjectCode] = React.useState('')
   const [projectName, setProjectName] = React.useState('')
+  const [dateOfSupply, setDateOfSupply] = React.useState('')
+  const [placeOfSupply, setPlaceOfSupply] = React.useState('Maharashtra')
+  const [reverseCharge, setReverseCharge] = React.useState('NO')
+  const [vehicleNumber, setVehicleNumber] = React.useState('')
+  const [transportMode, setTransportMode] = React.useState('Road')
+  const [siteName, setSiteName] = React.useState('')
+  const [deliveredThrough, setDeliveredThrough] = React.useState('')
   const [gstRate, setGstRate] = React.useState(9)
-  const [items, setItems] = React.useState<Item[]>([emptyItem(10)])
+  const [items, setItems] = React.useState<Item[]>([emptyItem()])
   const [saving, setSaving] = React.useState(false)
 
   async function loadList() {
@@ -38,9 +76,12 @@ export default function Billing() {
 
   async function startCreate() {
     setInvoiceNumber(''); setDate(new Date().toISOString().slice(0, 10))
-    setBillToName(''); setBillToAddress(''); setBillToGst('')
+    setBillToName(''); setBillToAddress(''); setBillToGst(''); setBillToMobile(''); setBillToEmail(''); setBillToState('Maharashtra')
+    setSameAsBilling(true); setShipToName(''); setShipToAddress(''); setShipToGst(''); setShipToState('')
     setPoNumber(''); setPoDate(''); setVendorCode(''); setProjectCode(''); setProjectName('')
-    setGstRate(9); setItems([emptyItem(10)])
+    setDateOfSupply(''); setPlaceOfSupply('Maharashtra'); setReverseCharge('NO')
+    setVehicleNumber(''); setTransportMode('Road'); setSiteName(''); setDeliveredThrough('')
+    setGstRate(9); setItems([emptyItem()])
     try {
       const [n, h] = await Promise.all([fetchNextBillNo(), fetchHsnCodes()])
       setInvoiceNumber(n.invoiceNumber); setHsn(h)
@@ -71,7 +112,19 @@ export default function Billing() {
     updateItem(idx, { hsnCode: value })
   }
 
-  function addRow() { setItems(prev => [...prev, emptyItem((prev.length + 1) * 10)]) }
+  // Each HSN/SAC code may only ever map to a single product — returns the conflicting
+  // product name if this row's code is already used for a different description.
+  function hsnConflict(hsnCode: string, description: string): string | null {
+    const code = hsnCode.trim()
+    const desc = description.trim()
+    if (!code) return null
+    const savedMatch = hsn.find((h: any) => h.code === code && h.description.trim() !== desc)
+    if (savedMatch) return savedMatch.description
+    const rowMatch = items.find(it => it.hsnCode.trim() === code && it.description.trim() && it.description.trim() !== desc)
+    return rowMatch ? rowMatch.description : null
+  }
+
+  function addRow() { setItems(prev => [...prev, emptyItem()]) }
   function removeRow(idx: number) { setItems(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)) }
 
   const rowAmount = (it: Item) => (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)
@@ -85,13 +138,22 @@ export default function Billing() {
     if (!billToName.trim()) { toast.error('Bill To name is required'); return }
     const valid = items.filter(it => it.description.trim())
     if (valid.length === 0) { toast.error('Add at least one line item'); return }
+    const conflicted = valid.find(it => hsnConflict(it.hsnCode, it.description))
+    if (conflicted) { toast.error(`HSN/SAC code "${conflicted.hsnCode}" is already used for another product`); return }
     setSaving(true)
     try {
       const created = await createBill({
-        invoiceNumber, date, billToName, billToAddress, billToGst,
-        poNumber, poDate, vendorCode, projectCode, projectName, gstRate,
-        items: valid.map(it => ({
-          lineNo: it.lineNo, description: it.description, hsnCode: it.hsnCode,
+        invoiceNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
+        shipToName: sameAsBilling ? '' : shipToName,
+        shipToAddress: sameAsBilling ? '' : shipToAddress,
+        shipToGst: sameAsBilling ? '' : shipToGst,
+        shipToState: sameAsBilling ? '' : shipToState,
+        poNumber, poDate, vendorCode, projectCode, projectName,
+        dateOfSupply: dateOfSupply || date, placeOfSupply, reverseCharge,
+        vehicleNumber, transportMode, siteName, deliveredThrough,
+        gstRate,
+        items: valid.map((it, i) => ({
+          lineNo: i + 1, description: it.description, hsnCode: it.hsnCode,
           unit: it.unit, quantity: Number(it.quantity) || 0, unitPrice: Number(it.unitPrice) || 0,
         })),
       })
@@ -153,7 +215,7 @@ export default function Billing() {
             <input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} />
           </div>
           <div className="md:col-span-2 border-t border-slate-200 dark:border-white/10 pt-3">
-            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Bill To</p>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Details of Receiver | Billed To</p>
           </div>
           <div>
             <label className="label">Bill To Name *</label>
@@ -167,12 +229,60 @@ export default function Billing() {
             <label className="label">Bill To Address</label>
             <textarea className="input resize-none" rows={3} value={billToAddress} onChange={e => setBillToAddress(e.target.value)} placeholder="Full billing address (one line per row)" />
           </div>
+          <div><label className="label">Mobile</label><input className="input" value={billToMobile} onChange={e => setBillToMobile(e.target.value)} placeholder="9545519101" /></div>
+          <div><label className="label">Email</label><input className="input" value={billToEmail} onChange={e => setBillToEmail(e.target.value)} placeholder="buyer@example.com" /></div>
+          <div className="md:col-span-2"><label className="label">State</label><input className="input" value={billToState} onChange={e => setBillToState(e.target.value)} placeholder="Maharashtra" /></div>
 
+          <div className="md:col-span-2 border-t border-slate-200 dark:border-white/10 pt-3 flex items-center justify-between">
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Details of Consignee | Shipped To</p>
+            <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 cursor-pointer">
+              <input type="checkbox" checked={sameAsBilling} onChange={e => setSameAsBilling(e.target.checked)} />
+              Same as billing
+            </label>
+          </div>
+          {!sameAsBilling && (
+            <>
+              <div>
+                <label className="label">Ship To Name</label>
+                <input className="input" value={shipToName} onChange={e => setShipToName(e.target.value)} placeholder="M/s. Company Name" />
+              </div>
+              <div>
+                <label className="label">Ship To GST No</label>
+                <input className="input" value={shipToGst} onChange={e => setShipToGst(e.target.value)} placeholder="27AAACB4487D1ZS" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="label">Ship To Address</label>
+                <textarea className="input resize-none" rows={3} value={shipToAddress} onChange={e => setShipToAddress(e.target.value)} placeholder="Full shipping address (one line per row)" />
+              </div>
+              <div className="md:col-span-2"><label className="label">State</label><input className="input" value={shipToState} onChange={e => setShipToState(e.target.value)} placeholder="Maharashtra" /></div>
+            </>
+          )}
+
+          <div className="md:col-span-2 border-t border-slate-200 dark:border-white/10 pt-3">
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Order Reference</p>
+          </div>
           <div><label className="label">PO Number</label><input className="input" value={poNumber} onChange={e => setPoNumber(e.target.value)} /></div>
           <div><label className="label">PO Date</label><input className="input" value={poDate} onChange={e => setPoDate(e.target.value)} placeholder="24.06.2026" /></div>
           <div><label className="label">Vendor Code</label><input className="input" value={vendorCode} onChange={e => setVendorCode(e.target.value)} /></div>
           <div><label className="label">Project Code</label><input className="input" value={projectCode} onChange={e => setProjectCode(e.target.value)} /></div>
           <div className="md:col-span-2"><label className="label">Project Name</label><input className="input" value={projectName} onChange={e => setProjectName(e.target.value)} /></div>
+
+          <div className="md:col-span-2 border-t border-slate-200 dark:border-white/10 pt-3">
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Dispatch / Transport Details</p>
+          </div>
+          <div><label className="label">Date Of Supply</label><input type="date" className="input" value={dateOfSupply} onChange={e => setDateOfSupply(e.target.value)} /></div>
+          <div><label className="label">Place of Supply</label><input className="input" value={placeOfSupply} onChange={e => setPlaceOfSupply(e.target.value)} placeholder="Maharashtra" /></div>
+          <div>
+            <label className="label">Reverse Charge</label>
+            <select className="input" value={reverseCharge} onChange={e => setReverseCharge(e.target.value)}>
+              <option value="NO">NO</option>
+              <option value="YES">YES</option>
+            </select>
+          </div>
+          <div><label className="label">Transportation Mode</label><input className="input" value={transportMode} onChange={e => setTransportMode(e.target.value)} placeholder="Road" /></div>
+          <div><label className="label">Vehicle Number</label><input className="input" value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value)} placeholder="MH12VF9823" /></div>
+          <div><label className="label">Place Of Supply (Site)</label><input className="input" value={siteName} onChange={e => setSiteName(e.target.value)} placeholder="SITE- SHRIRAMPUR" /></div>
+          <div className="md:col-span-2"><label className="label">Delivered Through</label><input className="input" value={deliveredThrough} onChange={e => setDeliveredThrough(e.target.value)} placeholder="Name / phone number" /></div>
         </div>
 
         {/* Line items */}
@@ -194,7 +304,7 @@ export default function Billing() {
             <table className="w-full text-sm min-w-[820px]">
               <thead>
                 <tr className="text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10">
-                  <th className="py-2 pr-2 w-14">Line</th>
+                  <th className="py-2 pr-2 w-14">Sr.No.</th>
                   <th className="py-2 pr-2">Description</th>
                   <th className="py-2 pr-2 w-28">HSN/SAC</th>
                   <th className="py-2 pr-2 w-24">Unit</th>
@@ -205,19 +315,25 @@ export default function Billing() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((it, idx) => (
+                {items.map((it, idx) => {
+                  const conflict = hsnConflict(it.hsnCode, it.description)
+                  return (
                   <tr key={idx} className="border-b border-slate-100 dark:border-white/5">
-                    <td className="py-1.5 pr-2">
-                      <input className="input !py-1.5 !px-2 text-center" value={it.lineNo}
-                        onChange={e => updateItem(idx, { lineNo: Number(e.target.value) || 0 } as any)} />
+                    <td className="py-1.5 pr-2 text-center text-slate-500 dark:text-slate-400 font-medium tabular-nums">
+                      {idx + 1}
                     </td>
                     <td className="py-1.5 pr-2">
                       <input className="input !py-1.5 !px-2" list="hsn-products" value={it.description}
                         onChange={e => onDescriptionChange(idx, e.target.value)} placeholder="Product / description" />
                     </td>
                     <td className="py-1.5 pr-2">
-                      <input className="input !py-1.5 !px-2" list="hsn-codes" value={it.hsnCode}
+                      <input className={`input no-arrow !py-1.5 !px-2 ${conflict ? '!border-red-400' : ''}`} list="hsn-codes" value={it.hsnCode}
                         onChange={e => onHsnChange(idx, e.target.value)} placeholder="85359090" />
+                      {conflict && (
+                        <p className="text-xs text-red-500 mt-1 whitespace-normal">
+                          Already used for "{conflict}"
+                        </p>
+                      )}
                     </td>
                     <td className="py-1.5 pr-2">
                       <select className="input !py-1.5 !px-2" value={it.unit} onChange={e => updateItem(idx, { unit: e.target.value })}>
@@ -225,11 +341,11 @@ export default function Billing() {
                       </select>
                     </td>
                     <td className="py-1.5 pr-2">
-                      <input className="input !py-1.5 !px-2 text-right" type="number" value={it.quantity}
+                      <input className="input no-spinner !py-1.5 !px-2 text-right" type="number" inputMode="decimal" value={it.quantity}
                         onChange={e => updateItem(idx, { quantity: e.target.value })} placeholder="0" />
                     </td>
                     <td className="py-1.5 pr-2">
-                      <input className="input !py-1.5 !px-2 text-right" type="number" value={it.unitPrice}
+                      <input className="input no-spinner !py-1.5 !px-2 text-right" type="number" inputMode="decimal" value={it.unitPrice}
                         onChange={e => updateItem(idx, { unitPrice: e.target.value })} placeholder="0.00" />
                     </td>
                     <td className="py-1.5 pr-2 text-right font-medium text-slate-700 dark:text-slate-200 tabular-nums">
@@ -239,7 +355,8 @@ export default function Billing() {
                       <button onClick={() => removeRow(idx)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -318,6 +435,8 @@ export default function Billing() {
                     <td className="py-3 px-4 text-right font-medium tabular-nums">{inr(b.total)}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-center gap-3">
+                        <button onClick={() => shareOnWhatsApp(b)} title="Share on WhatsApp" className="hover:opacity-75 transition-opacity"><FaWhatsapp size={18} color="#25D366" /></button>
+                        <button onClick={() => shareViaEmail(b)} title="Share via Email" className="hover:opacity-75 transition-opacity"><SiGmail size={16} color="#EA4335" /></button>
                         <button onClick={() => setPreview(b)} title="View / Print" className="text-blue-500 hover:text-blue-600"><Eye size={17} /></button>
                         <button onClick={() => remove(b.id)} title="Delete" className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                       </div>

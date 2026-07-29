@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authMiddleware } from '../utils/auth';
+import { accessMiddleware, requirePermission } from '../utils/access';
 
 function toDateString(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -9,9 +10,10 @@ function toDateString(d: Date) {
 export default function (prisma: PrismaClient) {
   const router = Router();
   router.use(authMiddleware);
+  router.use(accessMiddleware(prisma));
 
   // Check In
-  router.post('/checkin', async (req: any, res) => {
+  router.post('/checkin', requirePermission('attendance', 'canAdd'), async (req: any, res) => {
     const { lat, lng, notes } = req.body;
     const today = toDateString(new Date());
     const userId = req.user.id;
@@ -38,7 +40,7 @@ export default function (prisma: PrismaClient) {
   });
 
   // Check Out
-  router.post('/checkout', async (req: any, res) => {
+  router.post('/checkout', requirePermission('attendance', 'canAdd'), async (req: any, res) => {
     const { lat, lng } = req.body;
     const today = toDateString(new Date());
     const userId = req.user.id;
@@ -63,7 +65,7 @@ export default function (prisma: PrismaClient) {
   });
 
   // My attendance (own user)
-  router.get('/my', async (req: any, res) => {
+  router.get('/my', requirePermission('attendance', 'canView'), async (req: any, res) => {
     const records = await prisma.attendance.findMany({
       where: { userId: req.user.id },
       orderBy: { date: 'desc' },
@@ -73,7 +75,7 @@ export default function (prisma: PrismaClient) {
   });
 
   // Today's record for current user
-  router.get('/today', async (req: any, res) => {
+  router.get('/today', requirePermission('attendance', 'canView'), async (req: any, res) => {
     const today = toDateString(new Date());
     const record = await prisma.attendance.findUnique({
       where: { userId_date: { userId: req.user.id, date: today } },
@@ -81,13 +83,11 @@ export default function (prisma: PrismaClient) {
     res.json(record || null);
   });
 
-  // Admin: all attendance for a date
-  router.get('/all', async (req: any, res) => {
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER') {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+  // All attendance for a date — scoped to the user's branch unless they're all-sites
+  router.get('/all', requirePermission('admin-attendance', 'canView'), async (req: any, res) => {
     const { date } = req.query;
-    const where = date ? { date: String(date) } : {};
+    const where: any = date ? { date: String(date) } : {};
+    if (!req.access.allSites) where.user = { siteId: req.access.siteId };
     const records = await prisma.attendance.findMany({
       where,
       orderBy: [{ date: 'desc' }, { checkIn: 'asc' }],

@@ -1,35 +1,31 @@
 import React from 'react'
 import {
   LayoutDashboard, Wallet, Users, Truck, BarChart2,
-  LogOut, HardHat, ChevronRight, CalendarCheck, UserCog, MapPin,
-  Building, Sun, Moon, X, ReceiptText
+  LogOut, ChevronRight, CalendarCheck, UserCog,
+  Building, Sun, Moon, X, ReceiptText, PanelLeftClose, Landmark
 } from 'lucide-react'
 
 export type Page =
-  | 'dashboard' | 'tracker' | 'billing' | 'attendance' | 'admin-attendance'
+  | 'dashboard' | 'tracker' | 'billing' | 'banking' | 'attendance'
   | 'user-management' | 'customers' | 'vendors' | 'reports' | 'organisation'
 
-interface NavLink { id: Page; label: string; Icon: any; roles: string[] }
+// module / anyModule: the permission key(s) checked against user.permissions[module].canView
+// (anyModule shows the link if the user has view access to ANY of the listed modules).
+// adminOnly: hardcoded ADMIN-exclusive pages (not grantable to custom roles).
+interface NavLink { id: Page; label: string; Icon: any; module?: string; anyModule?: string[]; adminOnly?: boolean }
 
 const ALL_LINKS: NavLink[] = [
-  { id: 'dashboard',        label: 'Dashboard',           Icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'CUSTOMER'] },
-  { id: 'tracker',          label: 'Expense Tracker',     Icon: Wallet,          roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-  { id: 'billing',          label: 'Billing',             Icon: ReceiptText,     roles: ['ADMIN', 'MANAGER'] },
-  { id: 'attendance',       label: 'My Attendance',       Icon: CalendarCheck,   roles: ['MANAGER', 'EMPLOYEE', 'CUSTOMER'] },
-  { id: 'admin-attendance', label: 'All Attendance',      Icon: MapPin,          roles: ['ADMIN'] },
-  { id: 'customers',        label: 'Customers',           Icon: Users,           roles: ['ADMIN', 'MANAGER'] },
-  { id: 'vendors',          label: 'Vendors',             Icon: Truck,           roles: ['ADMIN', 'MANAGER'] },
-  { id: 'reports',          label: 'Reports',             Icon: BarChart2,       roles: ['ADMIN'] },
-  { id: 'user-management',  label: 'User Management',     Icon: UserCog,         roles: ['ADMIN'] },
-  { id: 'organisation',     label: 'Organisation Master', Icon: Building,        roles: ['ADMIN'] },
+  { id: 'dashboard',        label: 'Dashboard',           Icon: LayoutDashboard, module: 'dashboard' },
+  { id: 'tracker',          label: 'Expense Tracker',     Icon: Wallet,          module: 'tracker' },
+  { id: 'billing',          label: 'Billing',             Icon: ReceiptText,     module: 'billing' },
+  { id: 'banking',          label: 'Banking',             Icon: Landmark,        module: 'banking' },
+  { id: 'attendance',       label: 'Attendance',          Icon: CalendarCheck,   anyModule: ['attendance', 'admin-attendance'] },
+  { id: 'customers',        label: 'Customers',           Icon: Users,           module: 'customers' },
+  { id: 'vendors',          label: 'Vendors',             Icon: Truck,           module: 'vendors' },
+  { id: 'reports',          label: 'Reports',             Icon: BarChart2,       module: 'reports' },
+  { id: 'user-management',  label: 'User Management',     Icon: UserCog,         adminOnly: true },
+  { id: 'organisation',     label: 'Organisation Master', Icon: Building,        adminOnly: true },
 ]
-
-const ROLE_COLORS: Record<string, string> = {
-  ADMIN:    'bg-rose-500',
-  MANAGER:  'bg-purple-500',
-  EMPLOYEE: 'bg-blue-500',
-  CUSTOMER: 'bg-emerald-500',
-}
 
 interface Props {
   page: Page
@@ -40,11 +36,19 @@ interface Props {
   setTheme: (t: 'light' | 'dark') => void
   isOpen: boolean
   onClose: () => void
+  collapsed: boolean
+  onCollapse: () => void
 }
 
-export default function Sidebar({ page, setPage, onLogout, user, theme, setTheme, isOpen, onClose }: Props) {
-  const role = user?.role || 'EMPLOYEE'
-  const links = ALL_LINKS.filter(l => l.roles.includes(role))
+export default function Sidebar({ page, setPage, onLogout, user, theme, setTheme, isOpen, onClose, collapsed, onCollapse }: Props) {
+  const role = user?.role || 'No Role'
+  const isAdmin = !!user?.isAdmin
+  const links = ALL_LINKS.filter(l => {
+    if (l.adminOnly) return isAdmin
+    if (isAdmin) return true
+    if (l.anyModule) return l.anyModule.some(m => !!user?.permissions?.[m]?.canView)
+    return !!user?.permissions?.[l.module as string]?.canView
+  })
 
   function navigate(id: Page) {
     setPage(id)
@@ -58,17 +62,21 @@ export default function Sidebar({ page, setPage, onLogout, user, theme, setTheme
       flex flex-col z-30
       transition-transform duration-300 ease-in-out
       ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      md:translate-x-0
+      ${collapsed ? 'md:-translate-x-full' : 'md:translate-x-0'}
     `}>
-      {/* Logo + mobile close button */}
+      {/* Logo + close buttons */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
-        <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shrink-0">
-          <HardHat size={20} className="text-white" />
+        <div className="w-14 h-9 bg-white rounded-xl flex items-center justify-center shadow-lg shrink-0 overflow-hidden p-1">
+          <img src="/logo.png" alt="We Work Constructions" className="w-full h-full object-contain" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-sm leading-tight">We Work</p>
           <p className="text-slate-400 text-xs">Constructions</p>
         </div>
+        <button onClick={onCollapse} title="Hide sidebar"
+          className="hidden md:block text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition">
+          <PanelLeftClose size={18} />
+        </button>
         <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition">
           <X size={18} />
         </button>
@@ -76,12 +84,14 @@ export default function Sidebar({ page, setPage, onLogout, user, theme, setTheme
 
       {/* User info */}
       <div className="mx-3 mt-3 mb-1 bg-white/5 rounded-xl px-4 py-3 flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${ROLE_COLORS[role] || 'bg-slate-600'}`}>
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${isAdmin ? 'bg-rose-500' : 'bg-purple-500'}`}>
           {(user?.name || user?.email || 'U')[0].toUpperCase()}
         </div>
         <div className="min-w-0">
           <p className="text-white text-sm font-semibold truncate">{user?.name || 'User'}</p>
-          <p className="text-slate-400 text-xs">{role}</p>
+          <p className="text-slate-400 text-xs truncate">
+            {role}{user?.siteName ? ` · ${user.siteName}` : (!isAdmin && user?.allSites ? ' · All Branches' : '')}
+          </p>
         </div>
       </div>
 

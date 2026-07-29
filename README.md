@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-3. Open `http://localhost:4000/health` and `http://localhost:5173` (frontend).
+3. Open `http://localhost:4001/health` and `http://localhost:5173` (frontend).
 
 If you prefer Docker/Postgres, use `docker-compose up -d` and set `DATABASE_URL` accordingly.
 

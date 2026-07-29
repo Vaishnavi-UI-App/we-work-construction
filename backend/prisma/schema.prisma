@@ -13,10 +13,19 @@ model Bill {
   invoiceNumber String     @unique
   date          DateTime   @default(now())
 
-  // Bill To (customer)
+  // Bill To / Receiver (customer)
   billToName    String
   billToAddress String?
   billToGst     String?
+  billToMobile  String?
+  billToEmail   String?
+  billToState   String?
+
+  // Ship To / Consignee — defaults to same as billing when left blank
+  shipToName    String?
+  shipToAddress String?
+  shipToGst     String?
+  shipToState   String?
 
   // Order / project references
   poNumber      String?
@@ -24,6 +33,15 @@ model Bill {
   vendorCode    String?
   projectCode   String?
   projectName   String?
+
+  // Dispatch / transport details
+  dateOfSupply     DateTime?
+  placeOfSupply    String?
+  reverseCharge    String?  @default("NO")
+  vehicleNumber    String?
+  transportMode    String?
+  siteName         String?
+  deliveredThrough String?
 
   // Tax
   gstRate       Float      @default(9)   // per-half rate: 9 => CGST 9% + SGST 9%
@@ -50,14 +68,26 @@ model BillItem {
   amount      Float  @default(0)
 }
 
-// Remembered product -> HSN/SAC mapping for quick reuse
+// Remembered product -> HSN/SAC mapping for quick reuse. Each HSN/SAC code
+// may only ever map to a single product description.
 model HsnCode {
   id          Int      @id @default(autoincrement())
   description String   @unique
-  code        String
+  code        String   @unique
   unit        String?
   unitPrice   Float?
   updatedAt   DateTime @updatedAt
+}
+
+// One-time token emailed to a user for self-service password reset.
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
 }
 
 model User {
@@ -66,6 +96,11 @@ model User {
   name            String?
   password        String
   role            String           @default("EMPLOYEE")
+  roleId          Int?
+  roleRef         Role?            @relation(fields: [roleId], references: [id])
+  siteId          Int?
+  site            Site?            @relation(fields: [siteId], references: [id])
+  resetTokens     PasswordResetToken[]
   phone           String?
   isActive        Boolean          @default(true)
   createdAt       DateTime         @default(now())
@@ -73,6 +108,45 @@ model User {
   managedExpenses Expense[]        @relation("ManagerExpenses")
   fundAllocations FundAllocation[]
   attendances     Attendance[]
+}
+
+// Banking / customer ledger — a payment received from (or advance paid by) a
+// customer. customerName is freeform text, matching Bill.billToName, so a
+// payment doesn't require the customer to already exist as a Bill or Customer record.
+model Payment {
+  id           Int      @id @default(autoincrement())
+  customerName String
+  amount       Float
+  date         DateTime @default(now())
+  method       String?
+  reference    String?
+  notes        String?
+  createdAt    DateTime @default(now())
+}
+
+// Admin-defined custom role — everything except the fixed ADMIN super-role
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  isAllSites  Boolean          @default(false) // members see every branch's data instead of just their assigned site
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+  users       User[]
+}
+
+// Per-module view/add/edit/delete access for a Role
+model RolePermission {
+  id        Int     @id @default(autoincrement())
+  roleId    Int
+  role      Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module    String
+  canView   Boolean @default(false)
+  canAdd    Boolean @default(false)
+  canEdit   Boolean @default(false)
+  canDelete Boolean @default(false)
+
+  @@unique([roleId, module])
 }
 
 model Invoice {
@@ -132,7 +206,22 @@ model Expense {
   receiptUrl   String?
   date         DateTime @default(now())
   notes        String?
+  orderedBy    String?
   approved     Boolean  @default(false)
+}
+
+// Master list of people who can be selected as "Ordered By" on an expense
+model OrderedByPerson {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+// User-created expense categories (replaces the old fixed category list)
+model ExpenseCategory {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
 }
 
 model SiteWallet {
@@ -193,6 +282,7 @@ model Site {
   projects        Project[]
   wallet          SiteWallet?
   fundAllocations FundAllocation[]
+  users           User[]
 }
 
 model InvoiceItem {

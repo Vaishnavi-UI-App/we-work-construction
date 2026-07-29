@@ -16,6 +16,9 @@ import usersRouter from './routes/users';
 import attendanceRouter from './routes/attendance';
 import organisationRouter from './routes/organisation';
 import billingRouter from './routes/billing';
+import rolesRouter from './routes/roles';
+import geocodeRouter from './routes/geocode';
+import bankingRouter from './routes/banking';
 
 dotenv.config();
 const app = express();
@@ -44,12 +47,15 @@ app.use('/api/users', usersRouter(prisma));
 app.use('/api/attendance', attendanceRouter(prisma));
 app.use('/api/organisation', organisationRouter(prisma));
 app.use('/api/billing', billingRouter(prisma));
+app.use('/api/roles', rolesRouter(prisma));
+app.use('/api/geocode', geocodeRouter());
+app.use('/api/banking', bankingRouter(prisma));
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 });
 
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 4001;
 server.listen(port, () => {
   console.log(`We Work backend listening on ${port}`);
 });

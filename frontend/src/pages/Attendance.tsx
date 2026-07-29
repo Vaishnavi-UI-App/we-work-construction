@@ -1,7 +1,11 @@
 import React from 'react'
-import { checkIn, checkOut, fetchMyAttendance, fetchTodayAttendance } from '../api'
-import { CalendarCheck, Clock, MapPin, CheckCircle, LogIn, LogOut, AlertCircle } from 'lucide-react'
+import { checkIn, checkOut, fetchMyAttendance, fetchTodayAttendance, fetchAllAttendance } from '../api'
+import {
+  CalendarCheck, Clock, MapPin, CheckCircle, LogIn, LogOut, AlertCircle,
+  Users, XCircle, Filter, UserCog,
+} from 'lucide-react'
 import toast from 'react-hot-toast'
+import LocationLabel from '../components/LocationLabel'
 
 function getLocation(): Promise<{ lat: number; lng: number }> {
   return new Promise((resolve, reject) => {
@@ -20,7 +24,15 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function Attendance() {
+const ROLE_BADGE: Record<string, string> = {
+  ADMIN:    'bg-rose-100 text-rose-700',
+  MANAGER:  'bg-purple-100 text-purple-700',
+  EMPLOYEE: 'bg-blue-100 text-blue-700',
+  CUSTOMER: 'bg-emerald-100 text-emerald-700',
+}
+
+// ── My Attendance tab ────────────────────────────────────────────────────────
+function MyAttendanceTab() {
   const [today, setToday]     = React.useState<any>(null)
   const [history, setHistory] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -66,13 +78,6 @@ export default function Attendance() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">My Attendance</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
-      </div>
-
       {/* Today card */}
       <div className={`rounded-2xl p-6 border-2 transition-colors ${
         checkedOut ? 'bg-emerald-50 border-emerald-200' :
@@ -101,7 +106,8 @@ export default function Attendance() {
               <p className="font-bold text-slate-800">{fmt12(today.checkIn)}</p>
               {today.checkInLat && (
                 <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
-                  <MapPin size={10} />{today.checkInLat.toFixed(5)}, {today.checkInLng?.toFixed(5)}
+                  <MapPin size={10} className="shrink-0" />
+                  <LocationLabel lat={today.checkInLat} lng={today.checkInLng} className="hover:underline hover:text-slate-600" />
                 </p>
               )}
             </div>
@@ -178,8 +184,13 @@ export default function Attendance() {
                     <td className="table-cell text-blue-600">{r.checkIn ? fmt12(r.checkIn) : '—'}</td>
                     <td className="table-cell text-emerald-600">{r.checkOut ? fmt12(r.checkOut) : '—'}</td>
                     <td className="table-cell">{r.hoursWorked ? <span className="font-semibold">{r.hoursWorked}h</span> : '—'}</td>
-                    <td className="table-cell text-xs text-slate-400">
-                      {r.checkInLat ? <span className="flex items-center gap-1"><MapPin size={11} />{r.checkInLat.toFixed(3)}, {r.checkInLng?.toFixed(3)}</span> : '—'}
+                    <td className="table-cell text-xs text-slate-400 max-w-[180px]">
+                      {r.checkInLat
+                        ? <span className="flex items-center gap-1">
+                            <MapPin size={11} className="shrink-0" />
+                            <LocationLabel lat={r.checkInLat} lng={r.checkInLng} className="hover:underline hover:text-slate-600 truncate" />
+                          </span>
+                        : '—'}
                     </td>
                   </tr>
                 ))}
@@ -189,6 +200,171 @@ export default function Attendance() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── All Attendance tab ───────────────────────────────────────────────────────
+function AllAttendanceTab() {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const [date, setDate]       = React.useState(todayStr)
+  const [records, setRecords] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  function load(d: string) {
+    setLoading(true)
+    fetchAllAttendance(d)
+      .then(r => { setRecords(r); setLoading(false) })
+      .catch(() => setLoading(false))
+  }
+  React.useEffect(() => { load(date) }, [date])
+
+  const present  = records.filter(r => r.checkIn).length
+  const complete = records.filter(r => r.checkIn && r.checkOut).length
+  const absent   = records.filter(r => !r.checkIn).length
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-end">
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+          <Filter size={15} className="text-slate-400" />
+          <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            className="text-sm text-slate-700 focus:outline-none" />
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="card text-center">
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+            <Users size={18} className="text-blue-600" />
+          </div>
+          <p className="text-2xl font-bold text-slate-800">{present}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Present</p>
+        </div>
+        <div className="card text-center">
+          <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+            <CheckCircle size={18} className="text-emerald-600" />
+          </div>
+          <p className="text-2xl font-bold text-slate-800">{complete}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Completed</p>
+        </div>
+        <div className="card text-center">
+          <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+            <XCircle size={18} className="text-rose-600" />
+          </div>
+          <p className="text-2xl font-bold text-slate-800">{absent}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Absent</p>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="card p-0 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  {['Employee', 'Role', 'Check In', 'Check Out', 'Hours', 'Check-in Location', 'Check-out Location'].map(h => (
+                    <th key={h} className="table-head">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((r: any) => (
+                  <tr key={r.id} className={`hover:bg-slate-50/50 transition-colors ${!r.checkIn ? 'opacity-50' : ''}`}>
+                    <td className="table-cell">
+                      <div>
+                        <p className="font-semibold text-slate-800">{r.user?.name || '—'}</p>
+                        <p className="text-xs text-slate-400">{r.user?.email}</p>
+                      </div>
+                    </td>
+                    <td className="table-cell">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE[r.user?.role] || 'bg-slate-100 text-slate-600'}`}>
+                        {r.user?.role}
+                      </span>
+                    </td>
+                    <td className="table-cell">
+                      {r.checkIn
+                        ? <span className="text-blue-600 font-medium flex items-center gap-1"><Clock size={12} />{fmt12(r.checkIn)}</span>
+                        : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="table-cell">
+                      {r.checkOut
+                        ? <span className="text-emerald-600 font-medium flex items-center gap-1"><CheckCircle size={12} />{fmt12(r.checkOut)}</span>
+                        : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="table-cell">
+                      {r.hoursWorked ? <span className="font-bold text-slate-700">{r.hoursWorked}h</span> : '—'}
+                    </td>
+                    <td className="table-cell text-xs max-w-[180px]">
+                      {r.checkInLat
+                        ? <span className="flex items-center gap-1 text-blue-500 hover:text-blue-700">
+                            <MapPin size={11} className="shrink-0" />
+                            <LocationLabel lat={r.checkInLat} lng={r.checkInLng} className="hover:underline truncate" />
+                          </span>
+                        : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="table-cell text-xs max-w-[180px]">
+                      {r.checkOutLat
+                        ? <span className="flex items-center gap-1 text-emerald-500 hover:text-emerald-700">
+                            <MapPin size={11} className="shrink-0" />
+                            <LocationLabel lat={r.checkOutLat} lng={r.checkOutLng} className="hover:underline truncate" />
+                          </span>
+                        : <span className="text-slate-300">—</span>}
+                    </td>
+                  </tr>
+                ))}
+                {!records.length && (
+                  <tr><td colSpan={7} className="table-cell text-center text-slate-400 py-14">
+                    No attendance records for {date}
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+export default function Attendance({ user }: { user?: any }) {
+  const canViewAll = !!user?.isAdmin || !!user?.permissions?.['admin-attendance']?.canView
+  const [tab, setTab] = React.useState<'mine' | 'all'>('mine')
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Attendance</h1>
+        <p className="text-slate-500 text-sm mt-1">
+          {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
+      </div>
+
+      {canViewAll && (
+        <div className="flex gap-2 border-b border-slate-200">
+          <button onClick={() => setTab('mine')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              tab === 'mine' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}>
+            <CalendarCheck size={15} /> My Attendance
+          </button>
+          <button onClick={() => setTab('all')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              tab === 'all' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}>
+            <UserCog size={15} /> Attendance of All Users
+          </button>
+        </div>
+      )}
+
+      {!canViewAll || tab === 'mine' ? <MyAttendanceTab /> : <AllAttendanceTab />}
     </div>
   )
 }

@@ -1,20 +1,24 @@
 import { Router } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { authMiddleware } from '../utils/auth'
+import { accessMiddleware } from '../utils/access'
 
 export default function(prisma: PrismaClient){
   const router = Router()
   router.use(authMiddleware)
+  router.use(accessMiddleware(prisma))
 
-  router.get('/', async (_req, res) => {
-    const sites = await prisma.site.findMany()
+  // Every page needs the site list for dropdowns — scoped to the user's branch unless all-sites
+  router.get('/', async (req: any, res) => {
+    const sites = await prisma.site.findMany({
+      where: req.access.allSites ? {} : { id: req.access.siteId ?? -1 },
+    })
     res.json(sites)
   })
 
   router.post('/', async (req: any, res: any) => {
-    const role = req.user?.role
-    if (role !== 'ADMIN' && role !== 'MANAGER') {
-      return res.status(403).json({ error: 'Admin or Manager only' })
+    if (!req.access.isAdmin) {
+      return res.status(403).json({ error: 'Admin only' })
     }
     const { name } = req.body
     if (!name || !name.trim()) return res.status(400).json({ error: 'Site name is required' })

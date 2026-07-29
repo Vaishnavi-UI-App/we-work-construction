@@ -47,7 +47,7 @@ function uploadFile(conn, localPath, remotePath) {
 async function buildFrontendArchive() {
   log('📦 Building frontend archive...');
   const out = path.join(os.tmpdir(), 'wework_frontend.tar.gz');
-  const base = 'c:\\vaishnavi\\we work\\frontend';
+  const base = path.join(__dirname, 'frontend');
   const entries = fs.readdirSync(base).filter(e => !SKIP.has(e) && !e.startsWith('.') && e !== 'node_modules');
   await tar.c({ gzip: true, file: out, cwd: base, portable: true, filter: p => !p.includes('node_modules') }, entries);
   const size = (fs.statSync(out).size / 1024 / 1024).toFixed(1);

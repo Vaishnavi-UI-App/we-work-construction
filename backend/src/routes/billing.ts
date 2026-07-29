@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { authMiddleware } from '../utils/auth'
+import { accessMiddleware, requirePermission } from '../utils/access'
 
 // ---- Indian-format number to words (rupees) ----
 const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
@@ -48,22 +49,24 @@ function fiscalYear(d: Date): string {
 
 export default function (prisma: PrismaClient) {
   const router = Router()
+  router.use(authMiddleware)
+  router.use(accessMiddleware(prisma))
 
   // Next auto invoice number
-  router.get('/next-number', authMiddleware, async (_req: any, res) => {
+  router.get('/next-number', requirePermission('billing', 'canView'), async (_req: any, res) => {
     const count = await prisma.bill.count()
     const number = `WWC ${count + 1}/${fiscalYear(new Date())}`
     res.json({ invoiceNumber: number })
   })
 
   // Saved HSN/product suggestions
-  router.get('/hsn', authMiddleware, async (_req: any, res) => {
+  router.get('/hsn', requirePermission('billing', 'canView'), async (_req: any, res) => {
     const codes = await prisma.hsnCode.findMany({ orderBy: { updatedAt: 'desc' } })
     res.json(codes)
   })
 
   // List bills
-  router.get('/', authMiddleware, async (_req: any, res) => {
+  router.get('/', requirePermission('billing', 'canView'), async (_req: any, res) => {
     const bills = await prisma.bill.findMany({
       include: { items: { orderBy: { lineNo: 'asc' } } },
       orderBy: { createdAt: 'desc' },
@@ -72,7 +75,7 @@ export default function (prisma: PrismaClient) {
   })
 
   // Get one bill
-  router.get('/:id', authMiddleware, async (req: any, res) => {
+  router.get('/:id', requirePermission('billing', 'canView'), async (req: any, res) => {
     const id = Number(req.params.id)
     const bill = await prisma.bill.findUnique({
       where: { id },
@@ -83,11 +86,13 @@ export default function (prisma: PrismaClient) {
   })
 
   // Create bill
-  router.post('/', authMiddleware, async (req: any, res) => {
+  router.post('/', requirePermission('billing', 'canAdd'), async (req: any, res) => {
     try {
       const {
-        invoiceNumber, date, billToName, billToAddress, billToGst,
+        invoiceNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
+        shipToName, shipToAddress, shipToGst, shipToState,
         poNumber, poDate, vendorCode, projectCode, projectName,
+        dateOfSupply, placeOfSupply, reverseCharge, vehicleNumber, transportMode, siteName, deliveredThrough,
         gstRate, items,
       } = req.body
 
@@ -101,7 +106,7 @@ export default function (prisma: PrismaClient) {
         const unitPrice = Number(it.unitPrice) || 0
         const amount = +(quantity * unitPrice).toFixed(2)
         return {
-          lineNo: Number(it.lineNo) || (i + 1) * 10,
+          lineNo: Number(it.lineNo) || (i + 1),
           description: String(it.description),
           hsnCode: it.hsnCode ? String(it.hsnCode) : null,
           unit: it.unit ? String(it.unit) : 'EA',
@@ -110,6 +115,26 @@ export default function (prisma: PrismaClient) {
           amount,
         }
       })
+
+      // Each HSN/SAC code may only ever map to a single product description
+      const codesInThisInvoice = new Map<string, string>()
+      for (const it of computedItems) {
+        if (!it.hsnCode) continue
+        const seenDesc = codesInThisInvoice.get(it.hsnCode)
+        if (seenDesc && seenDesc !== it.description) {
+          return res.status(400).json({
+            error: `HSN/SAC code "${it.hsnCode}" is used for both "${seenDesc}" and "${it.description}" in this invoice — each HSN code must map to a single product.`,
+          })
+        }
+        codesInThisInvoice.set(it.hsnCode, it.description)
+
+        const existing = await prisma.hsnCode.findUnique({ where: { code: it.hsnCode } })
+        if (existing && existing.description !== it.description) {
+          return res.status(400).json({
+            error: `HSN/SAC code "${it.hsnCode}" is already used for "${existing.description}". Each HSN code must map to a single product — use a different code or the existing product name.`,
+          })
+        }
+      }
 
       const subtotal = +computedItems.reduce((s, it) => s + it.amount, 0).toFixed(2)
       const cgst = +(subtotal * rate / 100).toFixed(2)
@@ -130,8 +155,12 @@ export default function (prisma: PrismaClient) {
         data: {
           invoiceNumber: finalNumber,
           date: date ? new Date(date) : new Date(),
-          billToName, billToAddress, billToGst,
+          billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
+          shipToName: shipToName || null, shipToAddress: shipToAddress || null,
+          shipToGst: shipToGst || null, shipToState: shipToState || null,
           poNumber, poDate, vendorCode, projectCode, projectName,
+          dateOfSupply: dateOfSupply ? new Date(dateOfSupply) : (date ? new Date(date) : new Date()),
+          placeOfSupply, reverseCharge: reverseCharge || 'NO', vehicleNumber, transportMode, siteName, deliveredThrough,
           gstRate: rate, subtotal, cgst, sgst, total, amountInWords,
           items: { create: computedItems },
         },
@@ -159,7 +188,7 @@ export default function (prisma: PrismaClient) {
   })
 
   // Delete bill
-  router.delete('/:id', authMiddleware, async (req: any, res) => {
+  router.delete('/:id', requirePermission('billing', 'canDelete'), async (req: any, res) => {
     try {
       const id = Number(req.params.id)
       await prisma.bill.delete({ where: { id } })

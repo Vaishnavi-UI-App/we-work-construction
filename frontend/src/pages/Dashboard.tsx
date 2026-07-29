@@ -6,6 +6,7 @@ import {
 } from 'chart.js'
 import { Bar, Doughnut } from 'react-chartjs-2'
 import { TrendingDown, Wallet, User, Building2, ArrowUpRight, ArrowDownRight, Layers, Activity } from 'lucide-react'
+import SiteHistoryDrawer from '../components/SiteHistoryDrawer'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, LineElement, PointElement)
 
@@ -84,7 +85,7 @@ function GaugeCard({ label, value, sub, pct, circleColor, gradient, Icon, trend,
 }
 
 // ── Site Card ─────────────────────────────────────────────────────────────────
-function SiteCard({ site, index }: { site: any; index: number }) {
+function SiteCard({ site, index, onClick }: { site: any; index: number; onClick: () => void }) {
   const w = site.wallet || {}
   const pending = (w.totalPersonalSpent || 0) - (w.totalPersonalReimbursed || 0)
   const pct = w.totalFundsReceived > 0 ? Math.min(100, ((w.totalCompanySpent || 0) / w.totalFundsReceived) * 100) : 0
@@ -98,7 +99,8 @@ function SiteCard({ site, index }: { site: any; index: number }) {
   const delays = ['animate-delay-1','animate-delay-2','animate-delay-3','animate-delay-4']
 
   return (
-    <div className={`rounded-2xl border ${p.light} ${p.border} p-4 hover:shadow-md transition-all duration-300 animate-fade-up ${delays[index] || ''}`}>
+    <button type="button" onClick={onClick}
+      className={`text-left w-full rounded-2xl border ${p.light} ${p.border} p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 animate-fade-up cursor-pointer ${delays[index] || ''}`}>
       <div className="flex items-center gap-3 mb-3">
         <div className={`w-10 h-10 ${p.iconBg} rounded-xl flex items-center justify-center`}>
           <Building2 size={16} className="text-white" />
@@ -124,7 +126,7 @@ function SiteCard({ site, index }: { site: any; index: number }) {
           <span>Mgr. owed</span><span>{fmt(pending)}</span>
         </div>
       )}
-    </div>
+    </button>
   )
 }
 
@@ -132,7 +134,7 @@ function SiteCard({ site, index }: { site: any; index: number }) {
 function ActivityFeed({ expenses }: { expenses: any[] }) {
   const recent = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5)
   const catColor: Record<string, string> = {
-    Materials: 'bg-amber-500', Labor: 'bg-blue-500', Travel: 'bg-purple-500',
+    Materials: 'bg-amber-500', Labour: 'bg-blue-500', Labor: 'bg-blue-500', Travel: 'bg-purple-500',
     Equipment: 'bg-rose-500', Food: 'bg-green-500', Office: 'bg-slate-400', Misc: 'bg-gray-400',
   }
   return (
@@ -174,6 +176,7 @@ function AdminDashboard() {
   const [wallets,  setWallets]  = React.useState<any[]>([])
   const [expenses, setExpenses] = React.useState<any[]>([])
   const [loading,  setLoading]  = React.useState(true)
+  const [historySite, setHistorySite] = React.useState<any>(null)
   const isDark = document.documentElement.classList.contains('dark')
 
   React.useEffect(() => {
@@ -329,17 +332,20 @@ function AdminDashboard() {
               </span>
             </div>
           </div>
-          <Bar
-            data={barData}
-            options={{
-              responsive: true,
-              plugins: { legend: { display: false }, tooltip: { backgroundColor: tooltipBg, padding: 12, cornerRadius: 10 } },
-              scales: {
-                x: { grid: { display: false }, border: { display: false }, ticks: { color: axisColor, font: { size: 11 } } },
-                y: { grid: { color: gridColor }, border: { display: false }, ticks: { color: axisColor, font: { size: 11 } } },
-              },
-            }}
-          />
+          <div className="h-56 md:h-64">
+            <Bar
+              data={barData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { backgroundColor: tooltipBg, padding: 12, cornerRadius: 10 } },
+                scales: {
+                  x: { grid: { display: false }, border: { display: false }, ticks: { color: axisColor, font: { size: 11 } } },
+                  y: { grid: { color: gridColor }, border: { display: false }, ticks: { color: axisColor, font: { size: 11 } } },
+                },
+              }}
+            />
+          </div>
         </div>
 
         {/* Donut chart */}
@@ -350,13 +356,16 @@ function AdminDashboard() {
           </div>
           {wallets.some(w => (w.wallet?.totalCompanySpent || 0) > 0) ? (
             <>
-              <Doughnut
-                data={donutData}
-                options={{
-                  plugins: { legend: { display: false } },
-                  cutout: '70%',
-                }}
-              />
+              <div className="h-40 md:h-44">
+                <Doughnut
+                  data={donutData}
+                  options={{
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    cutout: '70%',
+                  }}
+                />
+              </div>
               {/* Custom legend */}
               <div className="mt-4 space-y-2">
                 {wallets.map((w, i) => (
@@ -388,12 +397,14 @@ function AdminDashboard() {
           <span className="text-xs text-slate-400 bg-slate-100 dark:bg-gray-700 dark:text-gray-300 px-2.5 py-1 rounded-full">{wallets.length} sites</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {wallets.map((site, i) => <SiteCard key={site.id} site={site} index={i} />)}
+          {wallets.map((site, i) => <SiteCard key={site.id} site={site} index={i} onClick={() => setHistorySite(site)} />)}
         </div>
       </div>
 
       {/* Activity feed */}
       <ActivityFeed expenses={expenses} />
+
+      {historySite && <SiteHistoryDrawer site={historySite} onClose={() => setHistorySite(null)} />}
     </div>
   )
 }
@@ -403,6 +414,7 @@ function ManagerDashboard({ user }: { user: any }) {
   const [wallets,  setWallets]  = React.useState<any[]>([])
   const [expenses, setExpenses] = React.useState<any[]>([])
   const [loading,  setLoading]  = React.useState(true)
+  const [historySite, setHistorySite] = React.useState<any>(null)
 
   React.useEffect(() => {
     Promise.all([fetchWallets(), fetchExpenses()])
@@ -466,17 +478,19 @@ function ManagerDashboard({ user }: { user: any }) {
           <span className="text-xs text-slate-400 bg-slate-100 dark:bg-gray-700 dark:text-gray-400 px-2.5 py-1 rounded-full">{wallets.length} sites</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {wallets.map((site, i) => <SiteCard key={site.id} site={site} index={i} />)}
+          {wallets.map((site, i) => <SiteCard key={site.id} site={site} index={i} onClick={() => setHistorySite(site)} />)}
         </div>
       </div>
 
       {/* Activity */}
       <ActivityFeed expenses={expenses} />
+
+      {historySite && <SiteHistoryDrawer site={historySite} onClose={() => setHistorySite(null)} />}
     </div>
   )
 }
 
 export default function Dashboard({ user }: { user: any }) {
-  if (user?.role === 'ADMIN') return <AdminDashboard />
+  if (user?.isAdmin) return <AdminDashboard />
   return <ManagerDashboard user={user} />
 }

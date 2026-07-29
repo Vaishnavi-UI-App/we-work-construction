@@ -1,13 +1,17 @@
 import React from 'react'
-import { fetchWallets, addFund, addTrackedExpense, fetchSiteHistory, createSite } from '../api'
+import {
+  fetchWallets, addFund, addTrackedExpense, createSite, fetchOrderedByPeople, addOrderedByPerson,
+  fetchExpenseCategories, addExpenseCategory,
+} from '../api'
 import {
   Building2, Plus, TrendingDown, Wallet, User, ArrowDownCircle,
-  ArrowUpCircle, CheckCircle, X, History, RefreshCw, Paperclip, Image, MapPin
+  X, History, RefreshCw, Paperclip, MapPin, UserPlus, FolderPlus
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getUser } from '../auth'
+import SiteHistoryDrawer from '../components/SiteHistoryDrawer'
 
-const CATEGORIES = ['Materials', 'Labor', 'Travel', 'Equipment', 'Office', 'Food', 'Misc']
+const todayStr = () => new Date().toISOString().slice(0, 10)
 
 const FUND_TYPE_STYLE: Record<string, string> = {
   COMPANY:  'bg-blue-100 text-blue-700',
@@ -134,12 +138,51 @@ function AddSiteModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
 // ── Add Expense Modal ──────────────────────────────────────────────────────────
 function AddExpenseModal({ sites, onClose, onDone }: { sites: any[]; onClose: () => void; onDone: () => void }) {
   const [siteId,   setSiteId]   = React.useState(sites[0]?.id || '')
-  const [category, setCategory] = React.useState('Materials')
+  const [category, setCategory] = React.useState('')
+  const [date,      setDate]    = React.useState(todayStr())
   const [amount,   setAmount]   = React.useState('')
   const [notes,    setNotes]    = React.useState('')
   const [receipt,  setReceipt]  = React.useState<File | null>(null)
   const [preview,  setPreview]  = React.useState<string | null>(null)
   const [loading,  setLoading]  = React.useState(false)
+
+  const [orderedBy, setOrderedBy] = React.useState('')
+  const [people, setPeople] = React.useState<any[]>([])
+  const [showAddPerson, setShowAddPerson] = React.useState(false)
+  const [newPersonName, setNewPersonName] = React.useState('')
+  const [addingPerson, setAddingPerson] = React.useState(false)
+
+  const [categories, setCategories] = React.useState<any[]>([])
+  const [showAddCategory, setShowAddCategory] = React.useState(false)
+  const [newCategoryName, setNewCategoryName] = React.useState('')
+  const [addingCategory, setAddingCategory] = React.useState(false)
+
+  React.useEffect(() => {
+    fetchOrderedByPeople().then(setPeople).catch(() => {})
+    fetchExpenseCategories().then(cats => {
+      setCategories(cats)
+      if (cats.length && !category) setCategory(cats[0].name)
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handleAddCategory() {
+    const name = newCategoryName.trim()
+    if (!name) return
+    setAddingCategory(true)
+    try {
+      const cat = await addExpenseCategory(name)
+      setCategories(prev => prev.some(c => c.id === cat.id) ? prev : [...prev, cat].sort((a, b) => a.name.localeCompare(b.name)))
+      setCategory(cat.name)
+      setNewCategoryName('')
+      setShowAddCategory(false)
+      toast.success(`"${cat.name}" added`)
+    } catch {
+      toast.error('Failed to add category')
+    } finally {
+      setAddingCategory(false)
+    }
+  }
 
   const selectedSite   = sites.find(s => s.id === Number(siteId))
   const companyBalance = selectedSite?.wallet?.companyBalance || 0
@@ -153,6 +196,24 @@ function AddExpenseModal({ sites, onClose, onDone }: { sites: any[]; onClose: ()
     else setPreview(null)
   }
 
+  async function handleAddPerson() {
+    const name = newPersonName.trim()
+    if (!name) return
+    setAddingPerson(true)
+    try {
+      const person = await addOrderedByPerson(name)
+      setPeople(prev => prev.some(p => p.id === person.id) ? prev : [...prev, person].sort((a, b) => a.name.localeCompare(b.name)))
+      setOrderedBy(person.name)
+      setNewPersonName('')
+      setShowAddPerson(false)
+      toast.success(`"${person.name}" added`)
+    } catch {
+      toast.error('Failed to add person')
+    } finally {
+      setAddingPerson(false)
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!amount || Number(amount) <= 0) { toast.error('Enter a valid amount'); return }
@@ -161,8 +222,10 @@ function AddExpenseModal({ sites, onClose, onDone }: { sites: any[]; onClose: ()
       const fd = new FormData()
       fd.append('siteId',   String(siteId))
       fd.append('category', category)
+      fd.append('date',     date)
       fd.append('amount',   amount)
       fd.append('notes',    notes)
+      if (orderedBy) fd.append('orderedBy', orderedBy)
       if (receipt) fd.append('receipt', receipt)
       const res = await addTrackedExpense(fd)
       const exp = res.expense
@@ -189,12 +252,37 @@ function AddExpenseModal({ sites, onClose, onDone }: { sites: any[]; onClose: ()
             </select>
           </div>
           <div>
-            <label className="label">Category</label>
-            <select className="input" value={category} onChange={e => setCategory(e.target.value)}>
-              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-            </select>
+            <label className="label">Date</label>
+            <input className="input" type="date" value={date} max={todayStr()} onChange={e => setDate(e.target.value)} />
           </div>
         </div>
+
+        {/* Category */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="label mb-0">Category</label>
+            <button type="button" onClick={() => setShowAddCategory(v => !v)}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+              <FolderPlus size={12} /> New Category
+            </button>
+          </div>
+          <select className="input" value={category} onChange={e => setCategory(e.target.value)}>
+            {!categories.length && <option value="">No categories yet</option>}
+            {categories.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </select>
+          {showAddCategory && (
+            <div className="flex gap-2 mt-2">
+              <input className="input flex-1" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)}
+                placeholder="Enter new category name" autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCategory() } }} />
+              <button type="button" onClick={handleAddCategory} disabled={addingCategory || !newCategoryName.trim()}
+                className="btn-primary px-4 text-sm whitespace-nowrap disabled:opacity-50">
+                {addingCategory ? '...' : 'Add'}
+              </button>
+            </div>
+          )}
+        </div>
+
         <div>
           <label className="label">Amount (₹)</label>
           <input className="input" type="number" min={1} step={0.01} value={amount}
@@ -203,6 +291,31 @@ function AddExpenseModal({ sites, onClose, onDone }: { sites: any[]; onClose: ()
         <div>
           <label className="label">Notes</label>
           <input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Expense description (optional)" />
+        </div>
+        {/* Ordered By */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="label mb-0">Ordered By</label>
+            <button type="button" onClick={() => setShowAddPerson(v => !v)}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+              <UserPlus size={12} /> New Person
+            </button>
+          </div>
+          <select className="input" value={orderedBy} onChange={e => setOrderedBy(e.target.value)}>
+            <option value="">Select person (optional)</option>
+            {people.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+          </select>
+          {showAddPerson && (
+            <div className="flex gap-2 mt-2">
+              <input className="input flex-1" value={newPersonName} onChange={e => setNewPersonName(e.target.value)}
+                placeholder="Enter new person's name" autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddPerson() } }} />
+              <button type="button" onClick={handleAddPerson} disabled={addingPerson || !newPersonName.trim()}
+                className="btn-primary px-4 text-sm whitespace-nowrap disabled:opacity-50">
+                {addingPerson ? '...' : 'Add'}
+              </button>
+            </div>
+          )}
         </div>
         {/* Bill upload */}
         <div>
@@ -250,88 +363,6 @@ function AddExpenseModal({ sites, onClose, onDone }: { sites: any[]; onClose: ()
         </div>
       </form>
     </Modal>
-  )
-}
-
-// ── Site History Drawer ────────────────────────────────────────────────────────
-function HistoryDrawer({ site, onClose }: { site: any; onClose: () => void }) {
-  const [data, setData] = React.useState<any>(null)
-  const [loading, setLoading] = React.useState(true)
-
-  React.useEffect(() => {
-    fetchSiteHistory(site.id)
-      .then(d => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [site.id])
-
-  return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40" onClick={onClose} />
-      <div className="w-full max-w-lg bg-white h-full flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <div>
-            <h2 className="font-bold text-slate-800">{site.name} — Transaction History</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{data?.timeline?.length || 0} entries</p>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-3">
-          {loading && <div className="flex justify-center py-10"><div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}
-
-          {!loading && data?.timeline?.map((tx: any, i: number) => (
-            <div key={i} className={`flex gap-4 p-4 rounded-xl border ${tx.txType === 'FUND' ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-slate-100'}`}>
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${tx.txType === 'FUND' ? 'bg-emerald-100' : 'bg-rose-100'}`}>
-                {tx.txType === 'FUND'
-                  ? <ArrowDownCircle size={18} className="text-emerald-600" />
-                  : <ArrowUpCircle size={18} className="text-rose-600" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-slate-800 text-sm">
-                      {tx.txType === 'FUND' ? 'Company Fund Added' : tx.category}
-                    </p>
-                    {tx.txType === 'EXPENSE' && (
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${FUND_TYPE_STYLE[tx.fundType] || ''}`}>
-                        {tx.fundType === 'COMPANY' ? 'Company' : tx.fundType === 'PERSONAL' ? 'Personal' : 'Split'}
-                      </span>
-                    )}
-                    {tx.notes && <p className="text-xs text-slate-400 mt-1 truncate">{tx.notes}</p>}
-                    {tx.txType === 'EXPENSE' && tx.fundType === 'SPLIT' && (
-                      <p className="text-xs text-slate-500 mt-1">
-                        Co: {fmt(tx.companyPaid)} + Personal: {fmt(tx.personalPaid)}
-                      </p>
-                    )}
-                    {tx.receiptUrl && (
-                      <a href={`http://localhost:4000${tx.receiptUrl}`} target="_blank" rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-1">
-                        <Image size={11} /> View Receipt
-                      </a>
-                    )}
-                    {tx.txType === 'FUND' && tx.reimbursedAmount > 0 && (
-                      <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
-                        <CheckCircle size={11} /> {fmt(tx.reimbursedAmount)} reimbursed to manager
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className={`font-bold text-sm ${tx.txType === 'FUND' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {tx.txType === 'FUND' ? '+' : '-'}{fmt(tx.amount)}
-                    </p>
-                    <p className="text-xs text-slate-400">{new Date(tx.date).toLocaleDateString('en-IN')}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {!loading && !data?.timeline?.length && (
-            <div className="text-center text-slate-400 py-16">No transactions yet for this site.</div>
-          )}
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -441,8 +472,9 @@ export default function ExpenseTracker() {
   const [showExpense, setShowExpense] = React.useState(false)
   const [showSite, setShowSite] = React.useState(false)
   const [historySite, setHistorySite] = React.useState<any>(null)
-  const role = getUser()?.role || 'EMPLOYEE'
-  const canManage = role === 'ADMIN' || role === 'MANAGER'
+  const currentUser = getUser()
+  const isAdmin = !!currentUser?.isAdmin
+  const canManage = isAdmin || !!currentUser?.permissions?.tracker?.canAdd
 
   function load() {
     setLoading(true)
@@ -468,7 +500,7 @@ export default function ExpenseTracker() {
           <p className="text-slate-500 text-sm mt-1">Site-wise company & personal fund management</p>
         </div>
         <div className="flex gap-3 flex-wrap justify-end">
-          {canManage && (
+          {isAdmin && (
             <button onClick={() => setShowSite(true)} className="btn-secondary flex items-center gap-2">
               <MapPin size={16} /> Add Site
             </button>
@@ -574,7 +606,7 @@ export default function ExpenseTracker() {
       {showSite    && <AddSiteModal                  onClose={() => setShowSite(false)}    onDone={() => { setShowSite(false);    load() }} />}
       {showFund    && <AddFundModal    sites={sites} onClose={() => setShowFund(false)}    onDone={() => { setShowFund(false);    load() }} />}
       {showExpense && <AddExpenseModal sites={sites} onClose={() => setShowExpense(false)} onDone={() => { setShowExpense(false); load() }} />}
-      {historySite && <HistoryDrawer   site={historySite} onClose={() => setHistorySite(null)} />}
+      {historySite && <SiteHistoryDrawer site={historySite} onClose={() => setHistorySite(null)} />}
     </div>
   )
 }

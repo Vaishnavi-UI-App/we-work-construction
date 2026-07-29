@@ -4,6 +4,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { authMiddleware } from '../utils/auth';
+import { accessMiddleware, requirePermission } from '../utils/access';
 
 const uploadsDir = path.join(__dirname, '../../../uploads/receipts');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
@@ -17,11 +18,15 @@ const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 export default function (prisma: PrismaClient) {
   const router = Router();
   router.use(authMiddleware);
+  router.use(accessMiddleware(prisma));
 
-  // Get all site wallets with full summary
-  router.get('/', async (_req, res) => {
+  // Get all site wallets with full summary — scoped to the user's branch unless they're all-sites
+  router.get('/', requirePermission('tracker', 'canView'), async (req: any, res) => {
     try {
+      const siteFilter = req.access.allSites ? {} : { id: req.access.siteId ?? -1 };
+
       const sites = await prisma.site.findMany({
+        where: siteFilter,
         include: {
           wallet: true,
           fundAllocations: { orderBy: { date: 'desc' }, take: 10 },
@@ -41,6 +46,7 @@ export default function (prisma: PrismaClient) {
       }
 
       const result = await prisma.site.findMany({
+        where: siteFilter,
         include: {
           wallet: true,
           fundAllocations: { orderBy: { date: 'desc' } },
@@ -59,10 +65,13 @@ export default function (prisma: PrismaClient) {
   });
 
   // Add company funds to a site — auto-reimburses manager personal money first
-  router.post('/fund', async (req: any, res) => {
+  router.post('/fund', requirePermission('tracker', 'canAdd'), async (req: any, res) => {
     const { siteId, amount, notes } = req.body;
     if (!siteId || !amount || Number(amount) <= 0) {
       return res.status(400).json({ error: 'siteId and amount required' });
+    }
+    if (!req.access.allSites && Number(siteId) !== req.access.siteId) {
+      return res.status(403).json({ error: 'You can only add funds to your assigned branch' });
     }
     try {
       const fund = Number(amount);
@@ -117,12 +126,65 @@ export default function (prisma: PrismaClient) {
     }
   });
 
+  // Ordered-by people master list (for the "Ordered By" dropdown on expenses)
+  router.get('/ordered-by', requirePermission('tracker', 'canView'), async (_req, res) => {
+    try {
+      const people = await prisma.orderedByPerson.findMany({ orderBy: { name: 'asc' } });
+      res.json(people);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch people' });
+    }
+  });
+
+  router.post('/ordered-by', requirePermission('tracker', 'canAdd'), async (req, res) => {
+    const { name } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'name required' });
+    try {
+      const person = await prisma.orderedByPerson.upsert({
+        where: { name: String(name).trim() },
+        update: {},
+        create: { name: String(name).trim() },
+      });
+      res.json(person);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to add person' });
+    }
+  });
+
+  // Expense category master list (for the "Category" dropdown — user-created, not fixed)
+  router.get('/categories', requirePermission('tracker', 'canView'), async (_req, res) => {
+    try {
+      const categories = await prisma.expenseCategory.findMany({ orderBy: { name: 'asc' } });
+      res.json(categories);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch categories' });
+    }
+  });
+
+  router.post('/categories', requirePermission('tracker', 'canAdd'), async (req, res) => {
+    const { name } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'name required' });
+    try {
+      const category = await prisma.expenseCategory.upsert({
+        where: { name: String(name).trim() },
+        update: {},
+        create: { name: String(name).trim() },
+      });
+      res.json(category);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to add category' });
+    }
+  });
+
   // Add expense — auto-deducts from company balance first, then personal (with optional receipt upload)
-  router.post('/expense', upload.single('receipt'), async (req: any, res) => {
-    const { siteId, category, amount, notes } = req.body;
+  router.post('/expense', requirePermission('tracker', 'canAdd'), upload.single('receipt'), async (req: any, res) => {
+    const { siteId, category, amount, notes, orderedBy, date } = req.body;
     const receiptUrl = req.file ? `/uploads/receipts/${req.file.filename}` : undefined;
     if (!siteId || !category || !amount || Number(amount) <= 0) {
       return res.status(400).json({ error: 'siteId, category and amount required' });
+    }
+    if (!req.access.allSites && Number(siteId) !== req.access.siteId) {
+      return res.status(403).json({ error: 'You can only add expenses to your assigned branch' });
     }
     try {
       const total = Number(amount);
@@ -161,6 +223,8 @@ export default function (prisma: PrismaClient) {
           personalPaid,
           fundType,
           notes,
+          orderedBy: orderedBy || undefined,
+          date: date ? new Date(date) : undefined,
           receiptUrl,
         },
         include: {
@@ -179,8 +243,11 @@ export default function (prisma: PrismaClient) {
   });
 
   // Full transaction history for a site
-  router.get('/history/:siteId', async (req, res) => {
+  router.get('/history/:siteId', requirePermission('tracker', 'canView'), async (req: any, res) => {
     const siteId = Number(req.params.siteId);
+    if (!req.access.allSites && siteId !== req.access.siteId) {
+      return res.status(403).json({ error: 'You can only view history for your assigned branch' });
+    }
     try {
       const [expenses, funds, wallet] = await Promise.all([
         prisma.expense.findMany({

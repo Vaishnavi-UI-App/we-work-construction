@@ -1,12 +1,13 @@
 import React from 'react'
 import { Toaster } from 'react-hot-toast'
-import { Menu, HardHat } from 'lucide-react'
+import { Menu, HardHat, PanelLeftOpen } from 'lucide-react'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import ExpenseTracker from './pages/ExpenseTracker'
 import Billing from './pages/Billing'
+import Banking from './pages/Banking'
 import Attendance from './pages/Attendance'
-import AdminAttendance from './pages/AdminAttendance'
 import UserManagement from './pages/UserManagement'
 import Customers from './pages/Customers'
 import Vendors from './pages/Vendors'
@@ -23,6 +24,11 @@ export default function App() {
   )
   const [page, setPage]           = React.useState<Page>('dashboard')
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => localStorage.getItem('sidebarCollapsed') === '1')
+
+  React.useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', sidebarCollapsed ? '1' : '0')
+  }, [sidebarCollapsed])
 
   React.useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
@@ -39,6 +45,14 @@ export default function App() {
   function onLogin(u: any)  { saveUser(u); setUser(u) }
   function onLogout()       { clearToken(); clearUser(); setUser(null) }
 
+  const resetToken = new URLSearchParams(window.location.search).get('resetToken')
+  if (resetToken) return (
+    <>
+      <ResetPassword token={resetToken} onDone={() => { window.location.href = window.location.pathname }} />
+      <Toaster position="top-right" />
+    </>
+  )
+
   if (!user) return (
     <>
       <Login onLogin={onLogin} />
@@ -50,8 +64,8 @@ export default function App() {
     dashboard:          <Dashboard user={user} />,
     tracker:            <ExpenseTracker />,
     billing:            <Billing />,
-    attendance:         <Attendance />,
-    'admin-attendance': <AdminAttendance />,
+    banking:            <Banking />,
+    attendance:         <Attendance user={user} />,
     'user-management':  <UserManagement />,
     customers:          <Customers />,
     vendors:            <Vendors />,
@@ -60,8 +74,8 @@ export default function App() {
   }
 
   const currentLabel: Record<Page, string> = {
-    dashboard: 'Dashboard', tracker: 'Expense Tracker', billing: 'Billing', attendance: 'My Attendance',
-    'admin-attendance': 'All Attendance', 'user-management': 'User Management',
+    dashboard: 'Dashboard', tracker: 'Expense Tracker', billing: 'Billing', banking: 'Banking', attendance: 'Attendance',
+    'user-management': 'User Management',
     customers: 'Customers', vendors: 'Vendors', reports: 'Reports', organisation: 'Organisation',
   }
 
@@ -88,10 +102,23 @@ export default function App() {
         page={page} setPage={setPage} onLogout={onLogout}
         user={user} theme={theme} setTheme={setTheme}
         isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed} onCollapse={() => setSidebarCollapsed(true)}
       />
 
+      {/* Floating button to bring the sidebar back when collapsed (desktop only) */}
+      {sidebarCollapsed && (
+        <button
+          onClick={() => setSidebarCollapsed(false)}
+          title="Show sidebar"
+          className="hidden md:flex fixed left-3 top-3 z-30 items-center justify-center w-9 h-9
+            bg-slate-900 text-white rounded-xl shadow-lg hover:bg-slate-800 transition-colors"
+        >
+          <PanelLeftOpen size={18} />
+        </button>
+      )}
+
       {/* Main content */}
-      <div className="flex-1 flex flex-col md:ml-64 min-h-screen relative z-10">
+      <div className={`flex-1 flex flex-col min-h-screen relative z-10 transition-[margin] duration-300 ${sidebarCollapsed ? 'md:ml-0' : 'md:ml-64'}`}>
 
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-20 flex items-center gap-3 px-4 py-3

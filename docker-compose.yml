@@ -8,7 +8,7 @@ services:
     environment:
       DATABASE_URL: file:/app/data/prod.db
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - create a .env file next to docker-compose.yml with JWT_SECRET=...}
-      PORT: 4000
+      PORT: 4001
       NODE_ENV: production
     # push schema, seed once (|| true so re-runs don't crash on existing data), then start
     command: sh -c "npx prisma db push && (npm run seed || true) && node dist/index.js"

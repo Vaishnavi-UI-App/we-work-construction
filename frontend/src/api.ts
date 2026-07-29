@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api' })
+const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4001/api' })
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
@@ -12,6 +12,26 @@ export const fetchSites    = () => api.get('/sites').then(r => r.data)
 export const createSite    = (name: string) => api.post('/sites', { name }).then(r => r.data)
 export const fetchReports  = () => api.get('/reports/summary').then(r => r.data)
 export const sendChatMessage = (message: string) => api.post('/chatbot', { message }).then(r => r.data)
+
+// Downloads a report as a file, using the auth header already attached above
+// (a plain <a href> or window.location can't carry the bearer token).
+async function downloadReport(url: string, fallbackFilename: string) {
+  const res = await api.get(url, { responseType: 'blob' })
+  const disposition = res.headers['content-disposition'] as string | undefined
+  const match = disposition?.match(/filename="?([^"]+)"?/)
+  const filename = match?.[1] || fallbackFilename
+  const blobUrl = URL.createObjectURL(new Blob([res.data]))
+  const a = document.createElement('a')
+  a.href = blobUrl
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(blobUrl)
+}
+export const downloadBranchReport    = () => downloadReport('/reports/export/branches', 'branch-wise-report.csv')
+export const downloadOrderedByReport = () => downloadReport('/reports/export/ordered-by', 'person-wise-report.csv')
+export const downloadManagerReport   = () => downloadReport('/reports/export/managers', 'manager-wise-report.csv')
 
 // Expenses (direct)
 export const fetchExpenses  = () => api.get('/wallet').then(r =>
@@ -34,6 +54,10 @@ export const fetchWallets      = () => api.get('/wallet').then(r => r.data)
 export const addFund           = (d: any) => api.post('/wallet/fund', d).then(r => r.data)
 export const addTrackedExpense = (d: FormData) => api.post('/wallet/expense', d, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
 export const fetchSiteHistory  = (siteId: number) => api.get(`/wallet/history/${siteId}`).then(r => r.data)
+export const fetchOrderedByPeople = () => api.get('/wallet/ordered-by').then(r => r.data)
+export const addOrderedByPerson   = (name: string) => api.post('/wallet/ordered-by', { name }).then(r => r.data)
+export const fetchExpenseCategories = () => api.get('/wallet/categories').then(r => r.data)
+export const addExpenseCategory     = (name: string) => api.post('/wallet/categories', { name }).then(r => r.data)
 
 // User Management
 export const fetchUsers  = () => api.get('/users').then(r => r.data)
@@ -41,12 +65,19 @@ export const createUser  = (d: any) => api.post('/users', d).then(r => r.data)
 export const updateUser  = (id: number, d: any) => api.put(`/users/${id}`, d).then(r => r.data)
 export const deleteUser  = (id: number) => api.delete(`/users/${id}`).then(r => r.data)
 
+// Role Management
+export const fetchRoles  = () => api.get('/roles').then(r => r.data)
+export const createRole  = (d: any) => api.post('/roles', d).then(r => r.data)
+export const updateRole  = (id: number, d: any) => api.put(`/roles/${id}`, d).then(r => r.data)
+export const deleteRole  = (id: number) => api.delete(`/roles/${id}`).then(r => r.data)
+
 // Attendance
 export const checkIn        = (d: any) => api.post('/attendance/checkin', d).then(r => r.data)
 export const checkOut       = (d: any) => api.post('/attendance/checkout', d).then(r => r.data)
 export const fetchMyAttendance   = () => api.get('/attendance/my').then(r => r.data)
 export const fetchTodayAttendance = () => api.get('/attendance/today').then(r => r.data)
 export const fetchAllAttendance  = (date?: string) => api.get('/attendance/all', { params: date ? { date } : {} }).then(r => r.data)
+export const reverseGeocode = (lat: number, lng: number) => api.get('/geocode/reverse', { params: { lat, lng } }).then(r => r.data.address as string)
 
 // Organisation Master
 export const fetchOrgProfile   = () => api.get('/organisation/profile').then(r => r.data)
@@ -62,5 +93,16 @@ export const fetchNextBillNo   = () => api.get('/billing/next-number').then(r =>
 export const fetchHsnCodes     = () => api.get('/billing/hsn').then(r => r.data)
 export const createBill        = (d: any) => api.post('/billing', d).then(r => r.data)
 export const deleteBill        = (id: number) => api.delete(`/billing/${id}`).then(r => r.data)
+
+// Banking / Customer Ledger
+export const fetchBankingSummary = () => api.get('/banking/summary').then(r => r.data)
+export const fetchPayments       = (customerName?: string) => api.get('/banking/payments', { params: customerName ? { customerName } : {} }).then(r => r.data)
+export const addPayment          = (d: any) => api.post('/banking/payments', d).then(r => r.data)
+export const deletePayment       = (id: number) => api.delete(`/banking/payments/${id}`).then(r => r.data)
+export const downloadBankingReport = (customerName?: string) =>
+  downloadReport(
+    customerName ? `/banking/export?customerName=${encodeURIComponent(customerName)}` : '/banking/export',
+    customerName ? `${customerName}-ledger.csv` : 'customer-ledger.csv'
+  )
 
 export default api
