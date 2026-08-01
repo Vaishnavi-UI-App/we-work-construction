@@ -165,9 +165,17 @@ body {
 
 /* ---- Print: only the invoice document ---- */
 @media print {
+  html, body { height: auto !important; }
   body * { visibility: hidden !important; }
-  .print-area, .print-area * { visibility: visible !important; }
-  .print-area { position: absolute; left: 0; top: 0; width: 100%; background: #fff; }
+  .print-area, .print-area * { visibility: visible !important; box-sizing: border-box !important; }
+  .print-area {
+    position: absolute; left: 0; top: 0; width: 100% !important; margin: 0 !important;
+    padding: 0 !important; background: #fff; border-radius: 0 !important;
+  }
+  .invoice-doc, .invoice-doc * {
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  .invoice-doc { page-break-inside: avoid; break-inside: avoid; border-color: #000 !important; }
   .no-print { display: none !important; }
-  @page { size: A4; margin: 12mm; }
+  @page { size: A4; margin: 10mm; }
 }

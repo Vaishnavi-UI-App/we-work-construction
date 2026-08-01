@@ -94,6 +94,13 @@ export const fetchHsnCodes     = () => api.get('/billing/hsn').then(r => r.data)
 export const createBill        = (d: any) => api.post('/billing', d).then(r => r.data)
 export const deleteBill        = (id: number) => api.delete(`/billing/${id}`).then(r => r.data)
 
+// Delivery Challan
+export const fetchChallans      = () => api.get('/delivery-challans').then(r => r.data)
+export const fetchChallan       = (id: number) => api.get(`/delivery-challans/${id}`).then(r => r.data)
+export const fetchNextChallanNo = () => api.get('/delivery-challans/next-number').then(r => r.data)
+export const createChallan      = (d: any) => api.post('/delivery-challans', d).then(r => r.data)
+export const deleteChallan      = (id: number) => api.delete(`/delivery-challans/${id}`).then(r => r.data)
+
 // Banking / Customer Ledger
 export const fetchBankingSummary = () => api.get('/banking/summary').then(r => r.data)
 export const fetchPayments       = (customerName?: string) => api.get('/banking/payments', { params: customerName ? { customerName } : {} }).then(r => r.data)

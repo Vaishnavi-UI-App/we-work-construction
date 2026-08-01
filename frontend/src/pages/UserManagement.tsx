@@ -3,11 +3,12 @@ import { fetchUsers, createUser, updateUser, deleteUser, fetchRoles, createRole,
 import { Plus, Pencil, Trash2, X, ShieldCheck, Shield, Users as UsersIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const MODULES = ['dashboard', 'tracker', 'billing', 'banking', 'attendance', 'admin-attendance', 'customers', 'vendors', 'reports'] as const
+const MODULES = ['dashboard', 'tracker', 'billing', 'delivery-challan', 'banking', 'attendance', 'admin-attendance', 'customers', 'vendors', 'reports'] as const
 const MODULE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   tracker: 'Expense Tracker',
   billing: 'Billing',
+  'delivery-challan': 'Delivery Challan',
   banking: 'Banking',
   attendance: 'My Attendance',
   'admin-attendance': 'All Attendance',

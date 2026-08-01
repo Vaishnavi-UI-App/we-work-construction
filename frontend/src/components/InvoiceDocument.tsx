@@ -56,12 +56,15 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
   const shipToGst = bill.shipToGst || bill.billToGst
   const shipToState = bill.shipToState || bill.billToState
 
-  const cell: React.CSSProperties = { border: '1px solid #000', padding: '5px 7px', fontSize: 13, verticalAlign: 'top', wordBreak: 'break-word', overflowWrap: 'break-word' }
-  const th: React.CSSProperties = { ...cell, fontWeight: 700, textAlign: 'center', background: '#f2f2f2' }
+  const cell: React.CSSProperties = { border: '1px solid #000', padding: '4px 5px', fontSize: 12, verticalAlign: 'top', wordBreak: 'break-word', overflowWrap: 'break-word' }
+  // Numbers/codes must never mid-value wrap (that's what caused "10,349.55" to split across
+  // three lines) — only the free-text description column benefits from word-break.
+  const numCell: React.CSSProperties = { ...cell, whiteSpace: 'nowrap' }
+  const th: React.CSSProperties = { ...cell, fontWeight: 700, textAlign: 'center', background: '#f2f2f2', whiteSpace: 'nowrap' }
 
   return (
-    <div style={{
-      width: 860, margin: '0 auto', background: '#fff', color: '#000',
+    <div className="invoice-doc" style={{
+      width: '100%', maxWidth: 860, boxSizing: 'border-box', margin: '0 auto', background: '#fff', color: '#000',
       fontFamily: 'Arial, Helvetica, sans-serif', border: '1px solid #000', padding: 0,
     }}>
       {/* Supplier + invoice meta */}
@@ -125,22 +128,22 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
-            <th style={{ ...th, width: 28 }} rowSpan={2}>Sr.<br />No.</th>
-            <th style={{ ...th, textAlign: 'left' }} rowSpan={2}>Name of Product</th>
-            <th style={{ ...th, width: 60 }} rowSpan={2}>HSN/SAC</th>
-            <th style={{ ...th, width: 34 }} rowSpan={2}>QTY</th>
-            <th style={{ ...th, width: 34 }} rowSpan={2}>Unit</th>
-            <th style={{ ...th, width: 55 }} rowSpan={2}>Rate</th>
-            <th style={{ ...th, width: 68 }} rowSpan={2}>Taxable<br />Value</th>
-            <th style={{ ...th, width: 90 }} colSpan={2}>CGST</th>
-            <th style={{ ...th, width: 90 }} colSpan={2}>SGST</th>
-            <th style={{ ...th, width: 78 }} rowSpan={2}>Total</th>
+            <th style={{ ...th, width: '4%' }} rowSpan={2}>Sr.<br />No.</th>
+            <th style={{ ...th, textAlign: 'left', whiteSpace: 'normal' }} rowSpan={2}>Name of Product</th>
+            <th style={{ ...th, width: '7%' }} rowSpan={2}>HSN/SAC</th>
+            <th style={{ ...th, width: '5%' }} rowSpan={2}>QTY</th>
+            <th style={{ ...th, width: '5%' }} rowSpan={2}>Unit</th>
+            <th style={{ ...th, width: '9%' }} rowSpan={2}>Rate</th>
+            <th style={{ ...th, width: '11%' }} rowSpan={2}>Taxable<br />Value</th>
+            <th style={{ ...th, width: '13%' }} colSpan={2}>CGST</th>
+            <th style={{ ...th, width: '13%' }} colSpan={2}>SGST</th>
+            <th style={{ ...th, width: '12%' }} rowSpan={2}>Total</th>
           </tr>
           <tr>
-            <th style={{ ...th, width: 40 }}>Rate</th>
-            <th style={{ ...th, width: 50 }}>Amount</th>
-            <th style={{ ...th, width: 40 }}>Rate</th>
-            <th style={{ ...th, width: 50 }}>Amount</th>
+            <th style={{ ...th, width: '5%' }}>Rate</th>
+            <th style={{ ...th, width: '8%' }}>Amount</th>
+            <th style={{ ...th, width: '5%' }}>Rate</th>
+            <th style={{ ...th, width: '8%' }}>Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -150,18 +153,18 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
             const lineTotal = it.amount + cgstAmt + sgstAmt
             return (
               <tr key={i}>
-                <td style={{ ...cell, textAlign: 'center' }}>{i + 1}</td>
+                <td style={{ ...numCell, textAlign: 'center' }}>{i + 1}</td>
                 <td style={cell}>{it.description}</td>
-                <td style={{ ...cell, textAlign: 'center' }}>{it.hsnCode}</td>
-                <td style={{ ...cell, textAlign: 'center' }}>{it.quantity}</td>
-                <td style={{ ...cell, textAlign: 'center' }}>{it.unit}</td>
-                <td style={{ ...cell, textAlign: 'right' }}>{inr(it.unitPrice)}</td>
-                <td style={{ ...cell, textAlign: 'right' }}>{inr(it.amount)}</td>
-                <td style={{ ...cell, textAlign: 'center' }}>{gstRate}%</td>
-                <td style={{ ...cell, textAlign: 'right' }}>{inr(cgstAmt)}</td>
-                <td style={{ ...cell, textAlign: 'center' }}>{gstRate}%</td>
-                <td style={{ ...cell, textAlign: 'right' }}>{inr(sgstAmt)}</td>
-                <td style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>Rs. {inr(lineTotal)}</td>
+                <td style={{ ...numCell, textAlign: 'center' }}>{it.hsnCode}</td>
+                <td style={{ ...numCell, textAlign: 'center' }}>{it.quantity}</td>
+                <td style={{ ...numCell, textAlign: 'center' }}>{it.unit}</td>
+                <td style={{ ...numCell, textAlign: 'right' }}>{inr(it.unitPrice)}</td>
+                <td style={{ ...numCell, textAlign: 'right' }}>{inr(it.amount)}</td>
+                <td style={{ ...numCell, textAlign: 'center' }}>{gstRate}%</td>
+                <td style={{ ...numCell, textAlign: 'right' }}>{inr(cgstAmt)}</td>
+                <td style={{ ...numCell, textAlign: 'center' }}>{gstRate}%</td>
+                <td style={{ ...numCell, textAlign: 'right' }}>{inr(sgstAmt)}</td>
+                <td style={{ ...numCell, textAlign: 'right', fontWeight: 700 }}>Rs. {inr(lineTotal)}</td>
               </tr>
             )
           })}

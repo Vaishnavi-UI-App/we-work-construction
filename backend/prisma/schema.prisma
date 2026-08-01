@@ -68,6 +68,49 @@ model BillItem {
   amount      Float  @default(0)
 }
 
+// Delivery Challan — accompanies goods in transit without billing them (no GST/pricing).
+model DeliveryChallan {
+  id             Int                   @id @default(autoincrement())
+  challanNumber  String                @unique
+  date           DateTime              @default(now())
+
+  billToName     String
+  billToAddress  String?
+  billToGst      String?
+  billToMobile   String?
+  billToEmail    String?
+  billToState    String?
+
+  shipToName     String?
+  shipToAddress  String?
+  shipToGst      String?
+  shipToState    String?
+
+  poNumber       String?
+  poDate         String?
+  purpose        String?  @default("Delivery")
+  dateOfSupply   DateTime?
+  placeOfSupply  String?
+  vehicleNumber  String?
+  transportMode  String?
+  siteName       String?
+  deliveredThrough String?
+
+  createdAt      DateTime              @default(now())
+  items          DeliveryChallanItem[]
+}
+
+model DeliveryChallanItem {
+  id          Int             @id @default(autoincrement())
+  challanId   Int
+  challan     DeliveryChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  lineNo      Int             @default(0)
+  description String
+  hsnCode     String?
+  unit        String          @default("EA")
+  quantity    Float           @default(0)
+}
+
 // Remembered product -> HSN/SAC mapping for quick reuse. Each HSN/SAC code
 // may only ever map to a single product description.
 model HsnCode {

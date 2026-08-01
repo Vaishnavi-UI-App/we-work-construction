@@ -2,11 +2,11 @@ import React from 'react'
 import {
   LayoutDashboard, Wallet, Users, Truck, BarChart2,
   LogOut, ChevronRight, CalendarCheck, UserCog,
-  Building, Sun, Moon, X, ReceiptText, PanelLeftClose, Landmark
+  Building, Sun, Moon, X, ReceiptText, PanelLeftClose, Landmark, PackageCheck
 } from 'lucide-react'
 
 export type Page =
-  | 'dashboard' | 'tracker' | 'billing' | 'banking' | 'attendance'
+  | 'dashboard' | 'tracker' | 'billing' | 'delivery-challan' | 'banking' | 'attendance'
   | 'user-management' | 'customers' | 'vendors' | 'reports' | 'organisation'
 
 // module / anyModule: the permission key(s) checked against user.permissions[module].canView
@@ -18,6 +18,7 @@ const ALL_LINKS: NavLink[] = [
   { id: 'dashboard',        label: 'Dashboard',           Icon: LayoutDashboard, module: 'dashboard' },
   { id: 'tracker',          label: 'Expense Tracker',     Icon: Wallet,          module: 'tracker' },
   { id: 'billing',          label: 'Billing',             Icon: ReceiptText,     module: 'billing' },
+  { id: 'delivery-challan', label: 'Delivery Challan',    Icon: PackageCheck,    module: 'delivery-challan' },
   { id: 'banking',          label: 'Banking',             Icon: Landmark,        module: 'banking' },
   { id: 'attendance',       label: 'Attendance',          Icon: CalendarCheck,   anyModule: ['attendance', 'admin-attendance'] },
   { id: 'customers',        label: 'Customers',           Icon: Users,           module: 'customers' },

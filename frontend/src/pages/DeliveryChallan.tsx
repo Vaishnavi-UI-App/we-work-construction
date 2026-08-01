@@ -3,47 +3,46 @@ import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
-import { Plus, Trash2, Printer, FileText, X, ArrowLeft, RefreshCw, Eye } from 'lucide-react'
+import { Plus, Trash2, Printer, FileText, ArrowLeft, RefreshCw, Eye } from 'lucide-react'
 import { FaWhatsapp } from 'react-icons/fa'
 import { SiGmail } from 'react-icons/si'
-import { fetchBills, fetchNextBillNo, fetchHsnCodes, createBill, deleteBill } from '../api'
-import InvoiceDocument from '../components/InvoiceDocument'
+import { fetchChallans, fetchNextChallanNo, createChallan, deleteChallan } from '../api'
+import ChallanDocument from '../components/ChallanDocument'
 
 const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS']
+const PURPOSES = ['Delivery', 'Job Work', 'Sales Return', 'Sample', 'Exhibition', 'Other']
 
-type Item = { description: string; hsnCode: string; unit: string; quantity: string; unitPrice: string }
+type Item = { description: string; hsnCode: string; unit: string; quantity: string }
 
-const emptyItem = (): Item => ({ description: '', hsnCode: '', unit: 'EA', quantity: '', unitPrice: '' })
+const emptyItem = (): Item => ({ description: '', hsnCode: '', unit: 'EA', quantity: '' })
 
-function buildShareMessage(bill: any) {
-  const amount = `₹${Number(bill.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  const date = new Date(bill.date).toLocaleDateString('en-GB')
-  return `Hi ${bill.billToName || ''},\n\nHere are your invoice details from We Work Constructions:\n\nInvoice No: ${bill.invoiceNumber}\nDate: ${date}\nAmount: ${amount}\n\nThank you for your business!`
+function buildShareMessage(challan: any) {
+  const date = new Date(challan.date).toLocaleDateString('en-GB')
+  return `Hi ${challan.billToName || ''},\n\nHere is your delivery challan from We Work Constructions:\n\nChallan No: ${challan.challanNumber}\nDate: ${date}\nPurpose: ${challan.purpose || 'Delivery'}\n\nThank you!`
 }
 
-function buildWhatsAppUrl(bill: any) {
-  const digits = String(bill.billToMobile || '').replace(/\D/g, '')
+function buildWhatsAppUrl(challan: any) {
+  const digits = String(challan.billToMobile || '').replace(/\D/g, '')
   const phone = digits ? (digits.length === 10 ? `91${digits}` : digits) : ''
-  return `https://wa.me/${phone}?text=${encodeURIComponent(buildShareMessage(bill))}`
+  return `https://wa.me/${phone}?text=${encodeURIComponent(buildShareMessage(challan))}`
 }
 
-function shareViaEmail(bill: any) {
-  const subject = `Invoice ${bill.invoiceNumber} from We Work Constructions`
-  const url = `mailto:${bill.billToEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(buildShareMessage(bill))}`
+function shareViaEmail(challan: any) {
+  const subject = `Delivery Challan ${challan.challanNumber} from We Work Constructions`
+  const url = `mailto:${challan.billToEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(buildShareMessage(challan))}`
   window.location.href = url
 }
 
-export default function Billing() {
+export default function DeliveryChallan() {
   const [view, setView] = React.useState<'list' | 'create'>('list')
-  const [bills, setBills] = React.useState<any[]>([])
-  const [hsn, setHsn] = React.useState<any[]>([])
+  const [challans, setChallans] = React.useState<any[]>([])
   const [preview, setPreview] = React.useState<any | null>(null)
-  const [captureBill, setCaptureBill] = React.useState<any | null>(null)
+  const [captureChallan, setCaptureChallan] = React.useState<any | null>(null)
   const [sharingId, setSharingId] = React.useState<number | null>(null)
   const captureRef = React.useRef<HTMLDivElement>(null)
 
   // form state
-  const [invoiceNumber, setInvoiceNumber] = React.useState('')
+  const [challanNumber, setChallanNumber] = React.useState('')
   const [date, setDate] = React.useState(() => new Date().toISOString().slice(0, 10))
   const [billToName, setBillToName] = React.useState('')
   const [billToAddress, setBillToAddress] = React.useState('')
@@ -58,36 +57,32 @@ export default function Billing() {
   const [shipToState, setShipToState] = React.useState('')
   const [poNumber, setPoNumber] = React.useState('')
   const [poDate, setPoDate] = React.useState('')
-  const [vendorCode, setVendorCode] = React.useState('')
-  const [projectCode, setProjectCode] = React.useState('')
-  const [projectName, setProjectName] = React.useState('')
+  const [purpose, setPurpose] = React.useState('Delivery')
   const [dateOfSupply, setDateOfSupply] = React.useState('')
   const [placeOfSupply, setPlaceOfSupply] = React.useState('Maharashtra')
-  const [reverseCharge, setReverseCharge] = React.useState('NO')
   const [vehicleNumber, setVehicleNumber] = React.useState('')
   const [transportMode, setTransportMode] = React.useState('Road')
   const [siteName, setSiteName] = React.useState('')
   const [deliveredThrough, setDeliveredThrough] = React.useState('')
-  const [gstRate, setGstRate] = React.useState(9)
   const [items, setItems] = React.useState<Item[]>([emptyItem()])
   const [saving, setSaving] = React.useState(false)
 
   async function loadList() {
-    try { setBills(await fetchBills()) } catch { toast.error('Failed to load invoices') }
+    try { setChallans(await fetchChallans()) } catch { toast.error('Failed to load delivery challans') }
   }
   React.useEffect(() => { loadList() }, [])
 
   async function startCreate() {
-    setInvoiceNumber(''); setDate(new Date().toISOString().slice(0, 10))
+    setChallanNumber(''); setDate(new Date().toISOString().slice(0, 10))
     setBillToName(''); setBillToAddress(''); setBillToGst(''); setBillToMobile(''); setBillToEmail(''); setBillToState('Maharashtra')
     setSameAsBilling(true); setShipToName(''); setShipToAddress(''); setShipToGst(''); setShipToState('')
-    setPoNumber(''); setPoDate(''); setVendorCode(''); setProjectCode(''); setProjectName('')
-    setDateOfSupply(''); setPlaceOfSupply('Maharashtra'); setReverseCharge('NO')
+    setPoNumber(''); setPoDate(''); setPurpose('Delivery')
+    setDateOfSupply(''); setPlaceOfSupply('Maharashtra')
     setVehicleNumber(''); setTransportMode('Road'); setSiteName(''); setDeliveredThrough('')
-    setGstRate(9); setItems([emptyItem()])
+    setItems([emptyItem()])
     try {
-      const [n, h] = await Promise.all([fetchNextBillNo(), fetchHsnCodes()])
-      setInvoiceNumber(n.invoiceNumber); setHsn(h)
+      const n = await fetchNextChallanNo()
+      setChallanNumber(n.challanNumber)
     } catch { /* non-fatal */ }
     setView('create')
   }
@@ -95,96 +90,53 @@ export default function Billing() {
   function updateItem(idx: number, patch: Partial<Item>) {
     setItems(prev => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
   }
-
-  // When a saved product description is chosen, auto-fill HSN / unit / price
-  function onDescriptionChange(idx: number, value: string) {
-    const match = hsn.find((h: any) => h.description === value)
-    if (match) {
-      updateItem(idx, {
-        description: value,
-        hsnCode: match.code || '',
-        unit: match.unit || 'EA',
-        unitPrice: match.unitPrice != null ? String(match.unitPrice) : items[idx].unitPrice,
-      })
-    } else {
-      updateItem(idx, { description: value })
-    }
-  }
-  // When an HSN code is typed that matches a saved one, we leave it — but if user picks a known code, fill unit
-  function onHsnChange(idx: number, value: string) {
-    updateItem(idx, { hsnCode: value })
-  }
-
-  // Each HSN/SAC code may only ever map to a single product — returns the conflicting
-  // product name if this row's code is already used for a different description.
-  function hsnConflict(hsnCode: string, description: string): string | null {
-    const code = hsnCode.trim()
-    const desc = description.trim()
-    if (!code) return null
-    const savedMatch = hsn.find((h: any) => h.code === code && h.description.trim() !== desc)
-    if (savedMatch) return savedMatch.description
-    const rowMatch = items.find(it => it.hsnCode.trim() === code && it.description.trim() && it.description.trim() !== desc)
-    return rowMatch ? rowMatch.description : null
-  }
-
   function addRow() { setItems(prev => [...prev, emptyItem()]) }
   function removeRow(idx: number) { setItems(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)) }
-
-  const rowAmount = (it: Item) => (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)
-  const subtotal = items.reduce((s, it) => s + rowAmount(it), 0)
-  const cgst = subtotal * gstRate / 100
-  const sgst = subtotal * gstRate / 100
-  const total = subtotal + cgst + sgst
-  const inr = (n: number) => '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   async function save() {
     if (!billToName.trim()) { toast.error('Bill To name is required'); return }
     const valid = items.filter(it => it.description.trim())
     if (valid.length === 0) { toast.error('Add at least one line item'); return }
-    const conflicted = valid.find(it => hsnConflict(it.hsnCode, it.description))
-    if (conflicted) { toast.error(`HSN/SAC code "${conflicted.hsnCode}" is already used for another product`); return }
     setSaving(true)
     try {
-      const created = await createBill({
-        invoiceNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
+      const created = await createChallan({
+        challanNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
         shipToName: sameAsBilling ? '' : shipToName,
         shipToAddress: sameAsBilling ? '' : shipToAddress,
         shipToGst: sameAsBilling ? '' : shipToGst,
         shipToState: sameAsBilling ? '' : shipToState,
-        poNumber, poDate, vendorCode, projectCode, projectName,
-        dateOfSupply: dateOfSupply || date, placeOfSupply, reverseCharge,
+        poNumber, poDate, purpose,
+        dateOfSupply: dateOfSupply || date, placeOfSupply,
         vehicleNumber, transportMode, siteName, deliveredThrough,
-        gstRate,
         items: valid.map((it, i) => ({
           lineNo: i + 1, description: it.description, hsnCode: it.hsnCode,
-          unit: it.unit, quantity: Number(it.quantity) || 0, unitPrice: Number(it.unitPrice) || 0,
+          unit: it.unit, quantity: Number(it.quantity) || 0,
         })),
       })
-      toast.success('Invoice generated!')
+      toast.success('Delivery challan generated!')
       await loadList()
       setPreview(created)
       setView('list')
     } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to generate invoice')
+      toast.error(e?.response?.data?.error || 'Failed to generate delivery challan')
     } finally { setSaving(false) }
   }
 
   async function remove(id: number) {
-    if (!confirm('Delete this invoice?')) return
-    try { await deleteBill(id); toast.success('Deleted'); loadList() }
+    if (!confirm('Delete this delivery challan?')) return
+    try { await deleteChallan(id); toast.success('Deleted'); loadList() }
     catch { toast.error('Failed to delete') }
   }
 
-  // Renders the invoice off-screen and captures it as a PDF. We deliberately do NOT call
-  // window.open()/navigator.share() here: both require a live user gesture, which is gone
+  // Renders the challan off-screen and captures it as a PDF. We do NOT call
+  // window.open()/navigator.share() here — both require a live user gesture, which is gone
   // by the time this async work (html2canvas + jsPDF) finishes, so browsers silently block
-  // them — no error, nothing happens, which is exactly the symptom this replaced. Instead
-  // we show a toast with a real <a> link; a genuine click on it is a fresh user gesture that
-  // no popup blocker can touch.
-  async function handleShareWhatsApp(bill: any) {
-    setSharingId(bill.id)
+  // them. Instead we show a toast with a real <a> link; a genuine click on it is a fresh
+  // user gesture that no popup blocker can touch.
+  async function handleShareWhatsApp(challan: any) {
+    setSharingId(challan.id)
     try {
-      setCaptureBill(bill)
+      setCaptureChallan(challan)
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
       const node = captureRef.current
       if (!node) throw new Error('capture container not ready')
@@ -209,7 +161,7 @@ export default function Billing() {
       }
 
       const pdfBlob = pdf.output('blob')
-      const file = new File([pdfBlob], `invoice-${bill.invoiceNumber}.pdf`, { type: 'application/pdf' })
+      const file = new File([pdfBlob], `challan-${challan.challanNumber}.pdf`, { type: 'application/pdf' })
 
       const url = URL.createObjectURL(pdfBlob)
       const a = document.createElement('a')
@@ -220,10 +172,10 @@ export default function Billing() {
       a.remove()
       URL.revokeObjectURL(url)
 
-      const waUrl = buildWhatsAppUrl(bill)
+      const waUrl = buildWhatsAppUrl(challan)
       toast((t) => (
         <span className="flex items-center gap-2">
-          Invoice PDF downloaded.
+          Challan PDF downloaded.
           <a href={waUrl} target="_blank" rel="noopener noreferrer" onClick={() => toast.dismiss(t.id)}
             className="font-semibold text-blue-600 underline whitespace-nowrap">
             Open WhatsApp
@@ -233,18 +185,15 @@ export default function Billing() {
       ), { duration: 20000 })
     } catch (err: any) {
       console.error('WhatsApp share failed:', err)
-      toast.error(`Could not share invoice PDF: ${err?.message || err}`)
+      toast.error(`Could not share delivery challan PDF: ${err?.message || err}`)
     } finally {
-      setCaptureBill(null)
+      setCaptureChallan(null)
       setSharingId(null)
     }
   }
 
   // ----- PREVIEW / PRINT MODAL -----
   if (preview) {
-    // Rendered via a portal straight into <body>, bypassing the app's sidebar/main layout
-    // wrapper entirely — otherwise `fixed` here was being confined next to the sidebar
-    // instead of covering (and centering within) the whole viewport.
     return createPortal(
       <div className="fixed inset-0 z-50 bg-black/70 overflow-auto p-4 print:p-0 print:bg-white flex justify-center">
         <div className="max-w-4xl w-full">
@@ -257,7 +206,7 @@ export default function Billing() {
             </button>
           </div>
           <div className="print-area bg-white p-4 rounded-lg">
-            <InvoiceDocument bill={preview} />
+            <ChallanDocument challan={preview} />
           </div>
         </div>
       </div>,
@@ -273,14 +222,14 @@ export default function Billing() {
           <button onClick={() => setView('list')} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors">
             <ArrowLeft size={18} className="text-slate-500" />
           </button>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">New Tax Invoice</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">New Delivery Challan</h1>
         </div>
 
         {/* Header fields */}
         <div className="card grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="label">Invoice No (auto)</label>
-            <input className="input" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="WWC .../26-27" />
+            <label className="label">Challan No (auto)</label>
+            <input className="input" value={challanNumber} onChange={e => setChallanNumber(e.target.value)} placeholder="DC .../26-27" />
           </div>
           <div>
             <label className="label">Date</label>
@@ -335,22 +284,18 @@ export default function Billing() {
           </div>
           <div><label className="label">PO Number</label><input className="input" value={poNumber} onChange={e => setPoNumber(e.target.value)} /></div>
           <div><label className="label">PO Date</label><input className="input" value={poDate} onChange={e => setPoDate(e.target.value)} placeholder="24.06.2026" /></div>
-          <div><label className="label">Vendor Code</label><input className="input" value={vendorCode} onChange={e => setVendorCode(e.target.value)} /></div>
-          <div><label className="label">Project Code</label><input className="input" value={projectCode} onChange={e => setProjectCode(e.target.value)} /></div>
-          <div className="md:col-span-2"><label className="label">Project Name</label><input className="input" value={projectName} onChange={e => setProjectName(e.target.value)} /></div>
+          <div>
+            <label className="label">Purpose</label>
+            <select className="input" value={purpose} onChange={e => setPurpose(e.target.value)}>
+              {PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
 
           <div className="md:col-span-2 border-t border-slate-200 dark:border-white/10 pt-3">
             <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Dispatch / Transport Details</p>
           </div>
           <div><label className="label">Date Of Supply</label><input type="date" className="input" value={dateOfSupply} onChange={e => setDateOfSupply(e.target.value)} /></div>
           <div><label className="label">Place of Supply</label><input className="input" value={placeOfSupply} onChange={e => setPlaceOfSupply(e.target.value)} placeholder="Maharashtra" /></div>
-          <div>
-            <label className="label">Reverse Charge</label>
-            <select className="input" value={reverseCharge} onChange={e => setReverseCharge(e.target.value)}>
-              <option value="NO">NO</option>
-              <option value="YES">YES</option>
-            </select>
-          </div>
           <div><label className="label">Transportation Mode</label><input className="input" value={transportMode} onChange={e => setTransportMode(e.target.value)} placeholder="Road" /></div>
           <div><label className="label">Vehicle Number</label><input className="input" value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value)} placeholder="MH12VF9823" /></div>
           <div><label className="label">Place Of Supply (Site)</label><input className="input" value={siteName} onChange={e => setSiteName(e.target.value)} placeholder="SITE- SHRIRAMPUR" /></div>
@@ -364,16 +309,8 @@ export default function Billing() {
             <button onClick={addRow} className="btn-secondary flex items-center gap-1.5 !py-1.5 !px-3 text-sm"><Plus size={14} /> Add Row</button>
           </div>
 
-          {/* saved product datalist for autocomplete */}
-          <datalist id="hsn-products">
-            {hsn.map((h: any) => <option key={h.id} value={h.description} />)}
-          </datalist>
-          <datalist id="hsn-codes">
-            {[...new Set(hsn.map((h: any) => h.code))].map((c: any) => <option key={c} value={c} />)}
-          </datalist>
-
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[820px]">
+            <table className="w-full text-sm min-w-[640px]">
               <thead>
                 <tr className="text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10">
                   <th className="py-2 pr-2 w-14">Sr.No.</th>
@@ -381,31 +318,22 @@ export default function Billing() {
                   <th className="py-2 pr-2 w-28">HSN/SAC</th>
                   <th className="py-2 pr-2 w-24">Unit</th>
                   <th className="py-2 pr-2 w-20">Qty</th>
-                  <th className="py-2 pr-2 w-28">Unit Price</th>
-                  <th className="py-2 pr-2 w-32 text-right">Amount</th>
                   <th className="py-2 w-8"></th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((it, idx) => {
-                  const conflict = hsnConflict(it.hsnCode, it.description)
-                  return (
+                {items.map((it, idx) => (
                   <tr key={idx} className="border-b border-slate-100 dark:border-white/5">
                     <td className="py-1.5 pr-2 text-center text-slate-500 dark:text-slate-400 font-medium tabular-nums">
                       {idx + 1}
                     </td>
                     <td className="py-1.5 pr-2">
-                      <input className="input !py-1.5 !px-2" list="hsn-products" value={it.description}
-                        onChange={e => onDescriptionChange(idx, e.target.value)} placeholder="Product / description" />
+                      <input className="input !py-1.5 !px-2" value={it.description}
+                        onChange={e => updateItem(idx, { description: e.target.value })} placeholder="Product / description" />
                     </td>
                     <td className="py-1.5 pr-2">
-                      <input className={`input no-arrow !py-1.5 !px-2 ${conflict ? '!border-red-400' : ''}`} list="hsn-codes" value={it.hsnCode}
-                        onChange={e => onHsnChange(idx, e.target.value)} placeholder="85359090" />
-                      {conflict && (
-                        <p className="text-xs text-red-500 mt-1 whitespace-normal">
-                          Already used for "{conflict}"
-                        </p>
-                      )}
+                      <input className="input no-arrow !py-1.5 !px-2" value={it.hsnCode}
+                        onChange={e => updateItem(idx, { hsnCode: e.target.value })} placeholder="85359090" />
                     </td>
                     <td className="py-1.5 pr-2">
                       <select className="input !py-1.5 !px-2" value={it.unit} onChange={e => updateItem(idx, { unit: e.target.value })}>
@@ -416,54 +344,20 @@ export default function Billing() {
                       <input className="input no-spinner !py-1.5 !px-2 text-right" type="number" inputMode="decimal" value={it.quantity}
                         onChange={e => updateItem(idx, { quantity: e.target.value })} placeholder="0" />
                     </td>
-                    <td className="py-1.5 pr-2">
-                      <input className="input no-spinner !py-1.5 !px-2 text-right" type="number" inputMode="decimal" value={it.unitPrice}
-                        onChange={e => updateItem(idx, { unitPrice: e.target.value })} placeholder="0.00" />
-                    </td>
-                    <td className="py-1.5 pr-2 text-right font-medium text-slate-700 dark:text-slate-200 tabular-nums">
-                      {rowAmount(it).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
                     <td className="py-1.5 text-center">
                       <button onClick={() => removeRow(idx)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
                     </td>
                   </tr>
-                  )
-                })}
+                ))}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* GST + totals */}
-        <div className="card grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="label">GST Rate (CGST + SGST)</label>
-            <div className="flex gap-2 mt-1">
-              {[9, 2.5].map(r => (
-                <button key={r} onClick={() => setGstRate(r)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
-                    gstRate === r ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-transparent text-slate-600 dark:text-slate-300 border-slate-300 dark:border-white/15 hover:border-blue-400'
-                  }`}>
-                  {r}% + {r}%
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400 mt-2">CGST {gstRate}% and SGST {gstRate}% each applied on the subtotal.</p>
-          </div>
-          <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between"><span className="text-slate-500">Total Before Taxes</span><span className="font-medium tabular-nums">{inr(subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">CGST {gstRate}%</span><span className="font-medium tabular-nums">{inr(cgst)}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">SGST {gstRate}%</span><span className="font-medium tabular-nums">{inr(sgst)}</span></div>
-            <div className="flex justify-between border-t border-slate-200 dark:border-white/10 pt-1.5 text-base font-bold text-slate-800 dark:text-white">
-              <span>Net Payable</span><span className="tabular-nums">{inr(total)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2">
             {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <FileText size={16} />}
-            {saving ? 'Generating...' : 'Generate Invoice'}
+            {saving ? 'Generating...' : 'Generate Challan'}
           </button>
           <button onClick={() => setView('list')} className="btn-secondary">Cancel</button>
         </div>
@@ -475,44 +369,44 @@ export default function Billing() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Billing / Tax Invoices</h1>
-        <button onClick={startCreate} className="btn-primary flex items-center gap-2"><Plus size={16} /> New Invoice</button>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Delivery Challan</h1>
+        <button onClick={startCreate} className="btn-primary flex items-center gap-2"><Plus size={16} /> New Challan</button>
       </div>
 
       <div className="card p-0 overflow-hidden">
-        {bills.length === 0 ? (
+        {challans.length === 0 ? (
           <div className="p-10 text-center text-slate-400">
             <FileText size={40} className="mx-auto mb-3 opacity-40" />
-            <p className="font-medium">No invoices yet</p>
-            <p className="text-sm">Click “New Invoice” to generate your first GST tax invoice.</p>
+            <p className="font-medium">No delivery challans yet</p>
+            <p className="text-sm">Click "New Challan" to generate your first delivery challan.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[640px]">
               <thead>
                 <tr className="text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5">
-                  <th className="py-3 px-4">Invoice No</th>
+                  <th className="py-3 px-4">Challan No</th>
                   <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">Bill To</th>
-                  <th className="py-3 px-4 text-right">Total</th>
+                  <th className="py-3 px-4">Purpose</th>
                   <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {bills.map(b => (
-                  <tr key={b.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
-                    <td className="py-3 px-4 font-semibold text-slate-800 dark:text-white">{b.invoiceNumber}</td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{new Date(b.date).toLocaleDateString('en-GB')}</td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{b.billToName}</td>
-                    <td className="py-3 px-4 text-right font-medium tabular-nums">{inr(b.total)}</td>
+                {challans.map(c => (
+                  <tr key={c.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
+                    <td className="py-3 px-4 font-semibold text-slate-800 dark:text-white">{c.challanNumber}</td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{new Date(c.date).toLocaleDateString('en-GB')}</td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{c.billToName}</td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{c.purpose || 'Delivery'}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-center gap-3">
-                        <button onClick={() => handleShareWhatsApp(b)} disabled={sharingId === b.id} title="Share on WhatsApp" className="hover:opacity-75 transition-opacity disabled:opacity-50">
-                          {sharingId === b.id ? <RefreshCw size={18} className="animate-spin text-slate-400" /> : <FaWhatsapp size={18} color="#25D366" />}
+                        <button onClick={() => handleShareWhatsApp(c)} disabled={sharingId === c.id} title="Share on WhatsApp" className="hover:opacity-75 transition-opacity disabled:opacity-50">
+                          {sharingId === c.id ? <RefreshCw size={18} className="animate-spin text-slate-400" /> : <FaWhatsapp size={18} color="#25D366" />}
                         </button>
-                        <button onClick={() => shareViaEmail(b)} title="Share via Email" className="hover:opacity-75 transition-opacity"><SiGmail size={16} color="#EA4335" /></button>
-                        <button onClick={() => setPreview(b)} title="View / Print" className="text-blue-500 hover:text-blue-600"><Eye size={17} /></button>
-                        <button onClick={() => remove(b.id)} title="Delete" className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                        <button onClick={() => shareViaEmail(c)} title="Share via Email" className="hover:opacity-75 transition-opacity"><SiGmail size={16} color="#EA4335" /></button>
+                        <button onClick={() => setPreview(c)} title="View / Print" className="text-blue-500 hover:text-blue-600"><Eye size={17} /></button>
+                        <button onClick={() => remove(c.id)} title="Delete" className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                       </div>
                     </td>
                   </tr>
@@ -523,13 +417,10 @@ export default function Billing() {
         )}
       </div>
 
-      {captureBill && (
-        // html2canvas can't reliably capture elements parked far off-screen (e.g. left: -10000px) —
-        // it clips/blanks them in some browsers — so this renders on-screen instead, on top of
-        // everything, for the brief moment it takes to snapshot it.
+      {captureChallan && (
         <div style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999, background: '#fff' }}>
           <div ref={captureRef} style={{ width: 860, background: '#fff' }}>
-            <InvoiceDocument bill={captureBill} />
+            <ChallanDocument challan={captureChallan} />
           </div>
         </div>
       )}

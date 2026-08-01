@@ -6,6 +6,7 @@ import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import ExpenseTracker from './pages/ExpenseTracker'
 import Billing from './pages/Billing'
+import DeliveryChallan from './pages/DeliveryChallan'
 import Banking from './pages/Banking'
 import Attendance from './pages/Attendance'
 import UserManagement from './pages/UserManagement'
@@ -64,6 +65,7 @@ export default function App() {
     dashboard:          <Dashboard user={user} />,
     tracker:            <ExpenseTracker />,
     billing:            <Billing />,
+    'delivery-challan': <DeliveryChallan />,
     banking:            <Banking />,
     attendance:         <Attendance user={user} />,
     'user-management':  <UserManagement />,
@@ -74,7 +76,7 @@ export default function App() {
   }
 
   const currentLabel: Record<Page, string> = {
-    dashboard: 'Dashboard', tracker: 'Expense Tracker', billing: 'Billing', banking: 'Banking', attendance: 'Attendance',
+    dashboard: 'Dashboard', tracker: 'Expense Tracker', billing: 'Billing', 'delivery-challan': 'Delivery Challan', banking: 'Banking', attendance: 'Attendance',
     'user-management': 'User Management',
     customers: 'Customers', vendors: 'Vendors', reports: 'Reports', organisation: 'Organisation',
   }
