@@ -56,10 +56,16 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
   const shipToGst = bill.shipToGst || bill.billToGst
   const shipToState = bill.shipToState || bill.billToState
 
-  const cell: React.CSSProperties = { border: '1px solid #000', padding: '4px 5px', fontSize: 12, verticalAlign: 'top', wordBreak: 'break-word', overflowWrap: 'break-word' }
+  const cell: React.CSSProperties = { border: '1px solid #000', padding: '4px 4px', fontSize: 11, verticalAlign: 'top', wordBreak: 'break-word', overflowWrap: 'break-word' }
   // Numbers/codes must never mid-value wrap (that's what caused "10,349.55" to split across
-  // three lines) — only the free-text description column benefits from word-break.
-  const numCell: React.CSSProperties = { ...cell, whiteSpace: 'nowrap' }
+  // three lines) — only the free-text description column benefits from word-break. `overflow:
+  // hidden` is a backstop: without it, a value wider than its fixed column (e.g. a large SGST/
+  // Total amount) doesn't wrap or shrink, it just pokes out past the table's right edge — and
+  // since that edge sits at the printable page boundary, the overflow gets silently cut off in
+  // both window.print() and the html2canvas-based PDF download instead of just being ugly on
+  // screen. Clipping it here keeps the layout intact; column widths below are sized generously
+  // enough that realistic invoice amounts never actually reach this limit.
+  const numCell: React.CSSProperties = { ...cell, whiteSpace: 'nowrap', overflow: 'hidden' }
   const th: React.CSSProperties = { ...cell, fontWeight: 700, textAlign: 'center', background: '#f2f2f2', whiteSpace: 'nowrap' }
 
   return (
@@ -128,22 +134,22 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
-            <th style={{ ...th, width: '4%' }} rowSpan={2}>Sr.<br />No.</th>
+            <th style={{ ...th, width: '3%' }} rowSpan={2}>Sr.<br />No.</th>
             <th style={{ ...th, textAlign: 'left', whiteSpace: 'normal' }} rowSpan={2}>Name of Product</th>
-            <th style={{ ...th, width: '7%' }} rowSpan={2}>HSN/SAC</th>
-            <th style={{ ...th, width: '5%' }} rowSpan={2}>QTY</th>
-            <th style={{ ...th, width: '5%' }} rowSpan={2}>Unit</th>
-            <th style={{ ...th, width: '9%' }} rowSpan={2}>Rate</th>
+            <th style={{ ...th, width: '6%' }} rowSpan={2}>HSN/SAC</th>
+            <th style={{ ...th, width: '4%' }} rowSpan={2}>QTY</th>
+            <th style={{ ...th, width: '4%' }} rowSpan={2}>Unit</th>
+            <th style={{ ...th, width: '8%' }} rowSpan={2}>Rate</th>
             <th style={{ ...th, width: '11%' }} rowSpan={2}>Taxable<br />Value</th>
             <th style={{ ...th, width: '13%' }} colSpan={2}>CGST</th>
             <th style={{ ...th, width: '13%' }} colSpan={2}>SGST</th>
-            <th style={{ ...th, width: '12%' }} rowSpan={2}>Total</th>
+            <th style={{ ...th, width: '14%' }} rowSpan={2}>Total</th>
           </tr>
           <tr>
-            <th style={{ ...th, width: '5%' }}>Rate</th>
-            <th style={{ ...th, width: '8%' }}>Amount</th>
-            <th style={{ ...th, width: '5%' }}>Rate</th>
-            <th style={{ ...th, width: '8%' }}>Amount</th>
+            <th style={{ ...th, width: '4%' }}>Rate</th>
+            <th style={{ ...th, width: '9%' }}>Amount</th>
+            <th style={{ ...th, width: '4%' }}>Rate</th>
+            <th style={{ ...th, width: '9%' }}>Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -164,7 +170,7 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
                 <td style={{ ...numCell, textAlign: 'right' }}>{inr(cgstAmt)}</td>
                 <td style={{ ...numCell, textAlign: 'center' }}>{gstRate}%</td>
                 <td style={{ ...numCell, textAlign: 'right' }}>{inr(sgstAmt)}</td>
-                <td style={{ ...numCell, textAlign: 'right', fontWeight: 700 }}>Rs. {inr(lineTotal)}</td>
+                <td style={{ ...numCell, textAlign: 'right', fontWeight: 700 }}>{inr(lineTotal)}</td>
               </tr>
             )
           })}

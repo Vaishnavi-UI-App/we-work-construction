@@ -111,6 +111,31 @@ model DeliveryChallanItem {
   quantity    Float           @default(0)
 }
 
+// A plain, no-GST delivery slip — party details + a simple item list (description/qty/unit),
+// matching the company's pre-printed paper challan pad. Distinct from DeliveryChallan above,
+// which is the full GST-style document with HSN codes and separate consignee details.
+model SimpleChallan {
+  id            Int                 @id @default(autoincrement())
+  challanNumber String              @unique
+  date          DateTime            @default(now())
+  vehicleNumber String?
+  partyName     String
+  siteName      String?
+  kindAttn      String?
+  createdAt     DateTime            @default(now())
+  items         SimpleChallanItem[]
+}
+
+model SimpleChallanItem {
+  id          Int           @id @default(autoincrement())
+  challanId   Int
+  challan     SimpleChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  lineNo      Int           @default(0)
+  description String
+  quantity    Float         @default(0)
+  unit        String        @default("NOS")
+}
+
 // Remembered product -> HSN/SAC mapping for quick reuse. Each HSN/SAC code
 // may only ever map to a single product description.
 model HsnCode {

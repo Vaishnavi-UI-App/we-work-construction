@@ -59,8 +59,14 @@ export default function (prisma: PrismaClient) {
   // Update user (admin only)
   router.put('/:id', adminOnly, async (req, res) => {
     const id = Number(req.params.id);
-    const { name, roleId, siteId, phone, isActive, password } = req.body;
+    const { name, email, roleId, siteId, phone, isActive, password } = req.body;
     const data: any = { name, phone, isActive };
+
+    if (email) {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing && existing.id !== id) return res.status(400).json({ error: 'Email already in use' });
+      data.email = email;
+    }
 
     if (roleId === null) {
       data.role = 'ADMIN';

@@ -3,12 +3,13 @@ import { fetchUsers, createUser, updateUser, deleteUser, fetchRoles, createRole,
 import { Plus, Pencil, Trash2, X, ShieldCheck, Shield, Users as UsersIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const MODULES = ['dashboard', 'tracker', 'billing', 'delivery-challan', 'banking', 'attendance', 'admin-attendance', 'customers', 'vendors', 'reports'] as const
+const MODULES = ['dashboard', 'tracker', 'billing', 'delivery-challan', 'simple-challan', 'banking', 'attendance', 'admin-attendance', 'customers', 'vendors', 'reports'] as const
 const MODULE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   tracker: 'Expense Tracker',
   billing: 'Billing',
-  'delivery-challan': 'Delivery Challan',
+  'delivery-challan': 'Delivery Challan (Tax/GST)',
+  'simple-challan': 'Delivery Challan (Simple)',
   banking: 'Banking',
   attendance: 'My Attendance',
   'admin-attendance': 'All Attendance',
@@ -75,7 +76,7 @@ function UserForm({ initial, roles, sites, onSave, onClose }: {
       </div>
       <div>
         <label className="label">Email *</label>
-        <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="user@wework.com" required disabled={!!initial} />
+        <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="user@wework.com" required />
       </div>
       <div>
         <label className="label">{initial ? 'New Password (leave blank to keep)' : 'Password *'}</label>

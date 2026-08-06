@@ -177,5 +177,5 @@ body {
   }
   .invoice-doc { page-break-inside: avoid; break-inside: avoid; border-color: #000 !important; }
   .no-print { display: none !important; }
-  @page { size: A4; margin: 10mm; }
+  @page { size: A4; margin: 8mm; }
 }

@@ -6,6 +6,7 @@ export const MODULES = [
   'tracker',
   'billing',
   'delivery-challan',
+  'simple-challan',
   'banking',
   'attendance',
   'admin-attendance',

@@ -7,7 +7,7 @@ dotenv.config()
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret'
 
 export function generateToken(payload: object) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' })
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
 }
 
 export function authMiddleware(req: Request & any, res: Response, next: NextFunction) {

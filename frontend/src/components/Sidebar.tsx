@@ -18,7 +18,7 @@ const ALL_LINKS: NavLink[] = [
   { id: 'dashboard',        label: 'Dashboard',           Icon: LayoutDashboard, module: 'dashboard' },
   { id: 'tracker',          label: 'Expense Tracker',     Icon: Wallet,          module: 'tracker' },
   { id: 'billing',          label: 'Billing',             Icon: ReceiptText,     module: 'billing' },
-  { id: 'delivery-challan', label: 'Delivery Challan',    Icon: PackageCheck,    module: 'delivery-challan' },
+  { id: 'delivery-challan', label: 'Delivery Challan',    Icon: PackageCheck,    anyModule: ['delivery-challan', 'simple-challan'] },
   { id: 'banking',          label: 'Banking',             Icon: Landmark,        module: 'banking' },
   { id: 'attendance',       label: 'Attendance',          Icon: CalendarCheck,   anyModule: ['attendance', 'admin-attendance'] },
   { id: 'customers',        label: 'Customers',           Icon: Users,           module: 'customers' },
