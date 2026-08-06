@@ -54,9 +54,11 @@ function CircularProgress({ pct, color, trackColor = 'rgba(255,255,255,0.12)', s
 }
 
 // ── Metric Gauge Card (reference-style) ──────────────────────────────────────
-function GaugeCard({ label, value, sub, pct, circleColor, gradient, Icon, trend, trendUp, delay }: any) {
+function GaugeCard({ label, value, sub, pct, circleColor, gradient, Icon, trend, trendUp, delay, onClick }: any) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-5 text-white stat-card-hover animate-fade-up ${delay} ${gradient}`}>
+    <div onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e: React.KeyboardEvent) => { if (e.key === 'Enter') onClick() } : undefined}
+      className={`relative overflow-hidden rounded-2xl p-5 text-white stat-card-hover animate-fade-up ${delay} ${gradient} ${onClick ? 'cursor-pointer' : ''}`}>
       <div className="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full pointer-events-none" />
       <div className="relative z-10 flex items-center gap-4">
         <div className="relative shrink-0">
@@ -293,12 +295,14 @@ function AdminDashboard() {
           pct={balancePct} circleColor="#38bdf8"
           gradient="bg-gradient-to-br from-sky-500 to-blue-700"
           Icon={Wallet} trend="+funds in" trendUp={true} delay="animate-delay-1"
+          onClick={() => document.getElementById('site-wallets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         />
         <GaugeCard
           label="Company Spent" value={fmt(totalCompSpent)} sub="All sites"
           pct={spentPct} circleColor="#fb923c"
           gradient="bg-gradient-to-br from-orange-400 to-amber-600"
           Icon={TrendingDown} trend="expenses" trendUp={false} delay="animate-delay-2"
+          onClick={() => document.getElementById('site-wallets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         />
         <GaugeCard
           label="Manager Pending" value={fmt(totalPersonal)} sub="Pending reimburse"
@@ -306,12 +310,14 @@ function AdminDashboard() {
           circleColor={totalPersonal > 0 ? '#f87171' : '#34d399'}
           gradient={totalPersonal > 0 ? 'bg-gradient-to-br from-rose-500 to-rose-700' : 'bg-gradient-to-br from-emerald-500 to-emerald-700'}
           Icon={User} trendUp={totalPersonal === 0} delay="animate-delay-3"
+          onClick={() => document.getElementById('site-wallets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         />
         <GaugeCard
           label="Active Sites" value={wallets.length} sub="Tracked locations"
           pct={(wallets.length / Math.max(wallets.length, 1)) * 100} circleColor="#a78bfa"
           gradient="bg-gradient-to-br from-violet-500 to-purple-700"
           Icon={Building2} delay="animate-delay-4"
+          onClick={() => document.getElementById('site-wallets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         />
       </div>
 
@@ -392,7 +398,7 @@ function AdminDashboard() {
       </div>
 
       {/* Site cards grid */}
-      <div>
+      <div id="site-wallets">
         <div className="flex items-center gap-2 mb-4">
           <h2 className="font-bold text-slate-800 dark:text-white">Site Wallets</h2>
           <span className="text-xs text-slate-400 bg-slate-100 dark:bg-gray-700 dark:text-gray-300 px-2.5 py-1 rounded-full">{wallets.length} sites</span>
@@ -474,7 +480,7 @@ function ManagerDashboard({ user }: { user: any }) {
       </div>
 
       {/* Site balances */}
-      <div>
+      <div id="site-balances">
         <div className="flex items-center gap-2 mb-4">
           <h2 className="font-bold text-slate-800 dark:text-white">Site Balances</h2>
           <span className="text-xs text-slate-400 bg-slate-100 dark:bg-gray-700 dark:text-gray-400 px-2.5 py-1 rounded-full">{wallets.length} sites</span>

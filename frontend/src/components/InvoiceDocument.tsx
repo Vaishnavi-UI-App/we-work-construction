@@ -46,9 +46,14 @@ function MetaCell({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
+// Minimum item rows to render — blank rows pad out short lists so a 2-3 item
+// invoice doesn't print as a mostly-empty, oddly short page.
+const MIN_ROWS = 8
+
 export default function InvoiceDocument({ bill }: { bill: any }) {
   const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
   const items: any[] = bill.items || []
+  const blankRows = Math.max(0, MIN_ROWS - items.length)
   const gstRate = bill.gstRate || 0
 
   const shipToName = bill.shipToName || bill.billToName
@@ -174,6 +179,22 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
               </tr>
             )
           })}
+          {Array.from({ length: blankRows }).map((_, i) => (
+            <tr key={`blank-${i}`}>
+              <td style={{ ...cell, height: 24 }}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+              <td style={cell}>&nbsp;</td>
+            </tr>
+          ))}
         </tbody>
       </table>
 

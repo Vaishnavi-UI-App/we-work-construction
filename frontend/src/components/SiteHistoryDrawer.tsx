@@ -143,9 +143,8 @@ export default function SiteHistoryDrawer({ site, onClose, onChanged }: { site: 
   const w = data?.wallet || {}
 
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40" onClick={onClose} />
-      <div className="w-full max-w-lg bg-white h-full flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h2 className="font-bold text-slate-800">{site.name} — Transaction History</h2>

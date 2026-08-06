@@ -32,11 +32,11 @@ export default function SimpleChallanDocument({ challan }: { challan: any }) {
       fontFamily: 'Arial, Helvetica, sans-serif', border: '1px solid #000', padding: 0,
     }}>
       {/* Letterhead */}
-      <div style={{ borderBottom: '1px solid #000', padding: '12px 16px', background: '#fce8d5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: 1, color: '#e07b1e', fontFamily: 'Arial, Helvetica, sans-serif' }}>
+      <div style={{ borderBottom: '1px solid #000', padding: '12px 16px', background: '#fce8d5', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'nowrap' }}>
+        <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: 0.5, color: '#e07b1e', fontFamily: 'Arial, Helvetica, sans-serif', flexShrink: 0 }}>
           {COMPANY.name}
         </div>
-        <div style={{ textAlign: 'right', fontSize: 12.5, lineHeight: 1.5 }}>
+        <div style={{ textAlign: 'right', fontSize: 11.5, lineHeight: 1.5, flexShrink: 0 }}>
           <div>Office :- {COMPANY.address.slice(0, -1).join(' ')}</div>
           <div>{COMPANY.address[COMPANY.address.length - 1]}</div>
           <div>Mobile :- {COMPANY.mobile}</div>

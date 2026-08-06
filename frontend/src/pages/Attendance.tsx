@@ -77,7 +77,8 @@ function MyAttendanceTab() {
   const checkedOut = !!today?.checkOut
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
+      <div className="max-w-2xl space-y-6">
       {/* Today card */}
       <div className={`rounded-2xl p-6 border-2 transition-colors ${
         checkedOut ? 'bg-emerald-50 border-emerald-200' :
@@ -163,6 +164,7 @@ function MyAttendanceTab() {
           Location is captured automatically on check-in and check-out. Please allow location access when prompted.
         </p>
       </div>
+      </div>
 
       {/* History */}
       <div className="card">
@@ -184,7 +186,7 @@ function MyAttendanceTab() {
                     <td className="table-cell text-blue-600">{r.checkIn ? fmt12(r.checkIn) : '—'}</td>
                     <td className="table-cell text-emerald-600">{r.checkOut ? fmt12(r.checkOut) : '—'}</td>
                     <td className="table-cell">{r.hoursWorked ? <span className="font-semibold">{r.hoursWorked}h</span> : '—'}</td>
-                    <td className="table-cell text-xs text-slate-400 max-w-[180px]">
+                    <td className="table-cell text-xs text-slate-400 max-w-xs">
                       {r.checkInLat
                         ? <span className="flex items-center gap-1">
                             <MapPin size={11} className="shrink-0" />
@@ -301,7 +303,7 @@ function AllAttendanceTab() {
                     <td className="table-cell">
                       {r.hoursWorked ? <span className="font-bold text-slate-700">{r.hoursWorked}h</span> : '—'}
                     </td>
-                    <td className="table-cell text-xs max-w-[180px]">
+                    <td className="table-cell text-xs max-w-xs">
                       {r.checkInLat
                         ? <span className="flex items-center gap-1 text-blue-500 hover:text-blue-700">
                             <MapPin size={11} className="shrink-0" />
@@ -309,7 +311,7 @@ function AllAttendanceTab() {
                           </span>
                         : <span className="text-slate-300">—</span>}
                     </td>
-                    <td className="table-cell text-xs max-w-[180px]">
+                    <td className="table-cell text-xs max-w-xs">
                       {r.checkOutLat
                         ? <span className="flex items-center gap-1 text-emerald-500 hover:text-emerald-700">
                             <MapPin size={11} className="shrink-0" />

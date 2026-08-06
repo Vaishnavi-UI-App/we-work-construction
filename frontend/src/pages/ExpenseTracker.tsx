@@ -520,7 +520,8 @@ export default function ExpenseTracker() {
 
       {/* Global summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card">
+        <button type="button" onClick={() => document.getElementById('site-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="card text-left hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
               <Wallet size={18} className="text-blue-600" />
@@ -530,8 +531,9 @@ export default function ExpenseTracker() {
               <p className="text-xl font-bold text-blue-600">{fmt(totalCompanyBalance)}</p>
             </div>
           </div>
-        </div>
-        <div className="card">
+        </button>
+        <button type="button" onClick={() => document.getElementById('site-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="card text-left hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
               <TrendingDown size={18} className="text-slate-600" />
@@ -541,8 +543,9 @@ export default function ExpenseTracker() {
               <p className="text-xl font-bold text-slate-700">{fmt(totalCompanySpent)}</p>
             </div>
           </div>
-        </div>
-        <div className="card">
+        </button>
+        <button type="button" onClick={() => document.getElementById('site-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="card text-left hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center shrink-0">
               <User size={18} className="text-rose-600" />
@@ -552,8 +555,9 @@ export default function ExpenseTracker() {
               <p className="text-xl font-bold text-rose-600">{fmt(totalPersonalSpent)}</p>
             </div>
           </div>
-        </div>
-        <div className={`card ${totalPending > 0 ? 'border-amber-200 bg-amber-50/50' : ''}`}>
+        </button>
+        <button type="button" onClick={() => document.getElementById('site-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className={`card text-left hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer ${totalPending > 0 ? 'border-amber-200 bg-amber-50/50' : ''}`}>
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${totalPending > 0 ? 'bg-amber-100' : 'bg-emerald-100'}`}>
               <RefreshCw size={18} className={totalPending > 0 ? 'text-amber-600' : 'text-emerald-600'} />
@@ -563,7 +567,7 @@ export default function ExpenseTracker() {
               <p className={`text-xl font-bold ${totalPending > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{fmt(totalPending)}</p>
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* How it works */}
@@ -586,6 +590,7 @@ export default function ExpenseTracker() {
       </div>
 
       {/* Site cards */}
+      <div id="site-cards" />
       {loading ? (
         <div className="flex items-center justify-center h-40">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />

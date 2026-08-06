@@ -41,9 +41,11 @@ function ReportsSkeleton() {
 }
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon, gradient, delay }: any) {
+function StatCard({ label, value, sub, icon, gradient, delay, onClick }: any) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-5 text-white stat-card-hover cursor-default animate-fade-up ${delay} ${gradient}`}>
+    <div onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e: React.KeyboardEvent) => { if (e.key === 'Enter') onClick() } : undefined}
+      className={`relative overflow-hidden rounded-2xl p-5 text-white stat-card-hover animate-fade-up ${delay} ${gradient} ${onClick ? 'cursor-pointer' : 'cursor-default'}`}>
       <div className="absolute -right-5 -top-5 w-24 h-24 bg-white/10 rounded-full" />
       <div className="absolute right-2 -bottom-4 w-14 h-14 bg-white/10 rounded-full" />
       <div className="relative z-10">
@@ -57,7 +59,7 @@ function StatCard({ label, value, sub, icon, gradient, delay }: any) {
 }
 
 // ── Site wallet card ──────────────────────────────────────────────────────────
-function SiteWalletCard({ site, index }: { site: any; index: number }) {
+function SiteWalletCard({ site, index, onClick }: { site: any; index: number; onClick?: () => void }) {
   const w = site.wallet || {}
   const pending = (w.totalPersonalSpent || 0) - (w.totalPersonalReimbursed || 0)
   const pct = w.totalFundsReceived > 0 ? Math.min(100, ((w.totalCompanySpent || 0) / w.totalFundsReceived) * 100) : 0
@@ -72,7 +74,9 @@ function SiteWalletCard({ site, index }: { site: any; index: number }) {
   const delays = ['animate-delay-1','animate-delay-2','animate-delay-3','animate-delay-4']
 
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-slate-100 border-t-4 ${p.border} p-5 hover:shadow-lg transition-all duration-300 animate-fade-up ${delays[index] || ''}`}>
+    <div onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e: React.KeyboardEvent) => { if (e.key === 'Enter') onClick() } : undefined}
+      className={`bg-white rounded-2xl shadow-sm border border-slate-100 border-t-4 ${p.border} p-5 hover:shadow-lg transition-all duration-300 animate-fade-up ${delays[index] || ''} ${onClick ? 'cursor-pointer' : ''}`}>
       <div className="flex items-center gap-3 mb-4">
         <div className={`w-10 h-10 ${p.icon} rounded-xl flex items-center justify-center`}>
           <Building2 size={17} className="text-white" />
@@ -195,6 +199,14 @@ export default function Reports() {
 
   if (loading) return <ReportsSkeleton />
 
+  function scrollToLedger() {
+    document.getElementById('expense-ledger')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  function selectSite(name: string) {
+    setSiteFilter(name)
+    scrollToLedger()
+  }
+
   return (
     <div className="space-y-6">
       {/* Hero header */}
@@ -228,42 +240,46 @@ export default function Reports() {
           icon={<TrendingDown size={18} className="text-white" />}
           gradient="bg-gradient-to-br from-slate-700 to-slate-900"
           delay="animate-delay-1"
+          onClick={() => { setSiteFilter('All'); setPersonFilter('All'); scrollToLedger() }}
         />
         <StatCard
           label="Company Paid" value={fmt(totalCompany)} sub="From company funds"
           icon={<Wallet size={18} className="text-white" />}
           gradient="bg-gradient-to-br from-blue-500 to-blue-700"
           delay="animate-delay-2"
+          onClick={scrollToLedger}
         />
         <StatCard
           label="Manager Paid" value={fmt(totalPersonal)} sub="Personal expenses"
           icon={<User size={18} className="text-white" />}
           gradient="bg-gradient-to-br from-rose-500 to-rose-700"
           delay="animate-delay-3"
+          onClick={scrollToLedger}
         />
         <StatCard
           label="Active Sites" value={wallets.length} sub="Tracked sites"
           icon={<Building2 size={18} className="text-white" />}
           gradient="bg-gradient-to-br from-violet-500 to-purple-700"
           delay="animate-delay-4"
+          onClick={() => document.getElementById('site-wallet-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         />
       </div>
 
       {/* Site wallet summary */}
-      <div className="animate-fade-up animate-delay-5">
+      <div id="site-wallet-summary" className="animate-fade-up animate-delay-5">
         <div className="flex items-center gap-2 mb-4">
           <h2 className="font-bold text-slate-800">Site Wallet Summary</h2>
           <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">{wallets.length} sites</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {wallets.map((site: any, i: number) => (
-            <SiteWalletCard key={site.id} site={site} index={i} />
+            <SiteWalletCard key={site.id} site={site} index={i} onClick={() => selectSite(site.name)} />
           ))}
         </div>
       </div>
 
       {/* Expense Ledger */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-up animate-delay-6">
+      <div id="expense-ledger" className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-up animate-delay-6">
         {/* Table header */}
         <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
           <div>
