@@ -1,13 +1,6 @@
 import React from 'react'
 import { COMPANY } from './InvoiceDocument'
 
-function CompanyLogo() {
-  return (
-    <img src="/logo.png" alt="We Work Constructions logo" width={64} height={64}
-      style={{ objectFit: 'contain', flexShrink: 0 }} />
-  )
-}
-
 // Reusable bordered cell styles shared across the document's tables/grids
 const box: React.CSSProperties = { border: '1px solid #000', padding: '5px 8px', fontSize: 14 }
 const boxLabel: React.CSSProperties = { fontSize: 12, color: '#333' }
@@ -47,10 +40,9 @@ export default function ChallanDocument({ challan }: { challan: any }) {
       {/* Supplier + challan meta */}
       <div style={{ display: 'flex' }}>
         {/* Supplier block */}
-        <div style={{ flex: 1.3, padding: '12px 14px', borderRight: '1px solid #000', borderBottom: '1px solid #000' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <CompanyLogo />
-            <div style={{ fontFamily: "'Rye', cursive", fontSize: 34, lineHeight: 1.1, color: '#000000' }}>{COMPANY.name}</div>
+        <div style={{ flex: 1.3, padding: '12px 14px', borderRight: '1px solid #000', borderBottom: '1px solid #000', background: '#fce8d5' }}>
+          <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: 0.5, color: '#e07b1e', fontFamily: 'Arial, Helvetica, sans-serif', marginBottom: 6 }}>
+            {COMPANY.name}
           </div>
           {COMPANY.address.map((l, i) => <div key={i} style={{ fontSize: 13 }}>{l}</div>)}
           <div style={{ fontSize: 13, marginTop: 3 }}>📞 {COMPANY.mobile}{COMPANY.altMobile ? `, ${COMPANY.altMobile}` : ''} &nbsp; ✉ {COMPANY.email}</div>
@@ -77,6 +69,11 @@ export default function ChallanDocument({ challan }: { challan: any }) {
             <MetaCell label="Delivered Through" value={challan.deliveredThrough} />
           </div>
         </div>
+      </div>
+
+      {/* Title */}
+      <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18, padding: '8px 0', borderBottom: '1px solid #000', color: '#b91c1c' }}>
+        Delivery Challan
       </div>
 
       {/* Receiver / Consignee */}
