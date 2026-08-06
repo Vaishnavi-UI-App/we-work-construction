@@ -78,7 +78,6 @@ function MyAttendanceTab() {
 
   return (
     <div className="space-y-6">
-      <div className="max-w-2xl space-y-6">
       {/* Today card */}
       <div className={`rounded-2xl p-6 border-2 transition-colors ${
         checkedOut ? 'bg-emerald-50 border-emerald-200' :
@@ -163,7 +162,6 @@ function MyAttendanceTab() {
         <p className="text-sm text-amber-700">
           Location is captured automatically on check-in and check-out. Please allow location access when prompted.
         </p>
-      </div>
       </div>
 
       {/* History */}
