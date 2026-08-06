@@ -97,6 +97,67 @@ export default function (prisma: PrismaClient) {
     }
   })
 
+  // Update challan — replaces line items, keeps the existing challan number
+  // unless a different, still-unique one is explicitly provided
+  router.put('/:id', requirePermission('delivery-challan', 'canEdit'), async (req: any, res) => {
+    try {
+      const id = Number(req.params.id)
+      const existing = await prisma.deliveryChallan.findUnique({ where: { id } })
+      if (!existing) return res.status(404).json({ error: 'Not found' })
+
+      const {
+        challanNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
+        shipToName, shipToAddress, shipToGst, shipToState,
+        poNumber, poDate, purpose, dateOfSupply, placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
+        items,
+      } = req.body
+
+      if (!billToName) return res.status(400).json({ error: 'Bill To name is required' })
+      const rawItems = Array.isArray(items) ? items.filter((it: any) => it && it.description) : []
+      if (rawItems.length === 0) return res.status(400).json({ error: 'At least one line item is required' })
+
+      const computedItems = rawItems.map((it: any, i: number) => ({
+        lineNo: Number(it.lineNo) || (i + 1),
+        description: String(it.description),
+        hsnCode: it.hsnCode ? String(it.hsnCode) : null,
+        unit: it.unit ? String(it.unit) : 'EA',
+        quantity: Number(it.quantity) || 0,
+      }))
+
+      let finalNumber = existing.challanNumber
+      const trimmedNumber = challanNumber ? String(challanNumber).trim() : ''
+      if (trimmedNumber && trimmedNumber !== existing.challanNumber) {
+        const clash = await prisma.deliveryChallan.findUnique({ where: { challanNumber: trimmedNumber } })
+        if (clash) return res.status(400).json({ error: `Challan number "${trimmedNumber}" is already used` })
+        finalNumber = trimmedNumber
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.deliveryChallanItem.deleteMany({ where: { challanId: id } })
+        return tx.deliveryChallan.update({
+          where: { id },
+          data: {
+            challanNumber: finalNumber,
+            date: date ? new Date(date) : existing.date,
+            billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
+            shipToName: shipToName || null, shipToAddress: shipToAddress || null,
+            shipToGst: shipToGst || null, shipToState: shipToState || null,
+            poNumber, poDate, purpose: purpose || 'Delivery',
+            dateOfSupply: dateOfSupply ? new Date(dateOfSupply) : existing.dateOfSupply,
+            placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
+            items: { create: computedItems },
+          },
+          include: { items: { orderBy: { lineNo: 'asc' } } },
+        })
+      })
+
+      res.json(updated)
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ error: 'Failed to update delivery challan' })
+    }
+  })
+
   // Delete challan
   router.delete('/:id', requirePermission('delivery-challan', 'canDelete'), async (req: any, res) => {
     try {

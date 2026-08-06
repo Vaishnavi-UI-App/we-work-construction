@@ -76,6 +76,56 @@ export default function (prisma: PrismaClient) {
     }
   })
 
+  // Update challan — replaces line items, keeps the existing challan number
+  // unless a different, still-unique one is explicitly provided
+  router.put('/:id', requirePermission('simple-challan', 'canEdit'), async (req: any, res) => {
+    try {
+      const id = Number(req.params.id)
+      const existing = await prisma.simpleChallan.findUnique({ where: { id } })
+      if (!existing) return res.status(404).json({ error: 'Not found' })
+
+      const { challanNumber, date, vehicleNumber, partyName, siteName, kindAttn, items } = req.body
+
+      if (!partyName) return res.status(400).json({ error: 'Party name is required' })
+      const rawItems = Array.isArray(items) ? items.filter((it: any) => it && it.description) : []
+      if (rawItems.length === 0) return res.status(400).json({ error: 'At least one line item is required' })
+
+      const computedItems = rawItems.map((it: any, i: number) => ({
+        lineNo: Number(it.lineNo) || (i + 1),
+        description: String(it.description),
+        quantity: Number(it.quantity) || 0,
+        unit: it.unit ? String(it.unit) : "NO'S",
+      }))
+
+      let finalNumber = existing.challanNumber
+      const trimmedNumber = challanNumber ? String(challanNumber).trim() : ''
+      if (trimmedNumber && trimmedNumber !== existing.challanNumber) {
+        const clash = await prisma.simpleChallan.findUnique({ where: { challanNumber: trimmedNumber } })
+        if (clash) return res.status(400).json({ error: `Challan number "${trimmedNumber}" is already used` })
+        finalNumber = trimmedNumber
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.simpleChallanItem.deleteMany({ where: { challanId: id } })
+        return tx.simpleChallan.update({
+          where: { id },
+          data: {
+            challanNumber: finalNumber,
+            date: date ? new Date(date) : existing.date,
+            vehicleNumber, partyName, siteName, kindAttn,
+            items: { create: computedItems },
+          },
+          include: { items: { orderBy: { lineNo: 'asc' } } },
+        })
+      })
+
+      res.json(updated)
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ error: 'Failed to update delivery challan' })
+    }
+  })
+
   // Delete challan
   router.delete('/:id', requirePermission('simple-challan', 'canDelete'), async (req: any, res) => {
     try {

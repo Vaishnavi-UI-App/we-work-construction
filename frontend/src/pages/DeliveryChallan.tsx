@@ -3,12 +3,12 @@ import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
-import { Plus, Trash2, Printer, FileText, ArrowLeft, RefreshCw, Eye, Package, PackageCheck } from 'lucide-react'
+import { Plus, Trash2, Printer, FileText, ArrowLeft, RefreshCw, Eye, Package, PackageCheck, Pencil } from 'lucide-react'
 import { FaWhatsapp } from 'react-icons/fa'
 import { SiGmail } from 'react-icons/si'
 import {
-  fetchChallans, fetchNextChallanNo, createChallan, deleteChallan,
-  fetchSimpleChallans, fetchNextSimpleChallanNo, createSimpleChallan, deleteSimpleChallan,
+  fetchChallans, fetchNextChallanNo, createChallan, updateChallan, deleteChallan,
+  fetchSimpleChallans, fetchNextSimpleChallanNo, createSimpleChallan, updateSimpleChallan, deleteSimpleChallan,
 } from '../api'
 import ChallanDocument from '../components/ChallanDocument'
 import SimpleChallanDocument from '../components/SimpleChallanDocument'
@@ -46,19 +46,24 @@ function shareViaEmail(challan: any) {
 }
 
 // ── Create: Simple (pad-style) challan ─────────────────────────────────────────
-function SimpleCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
-  const [challanNumber, setChallanNumber] = React.useState('')
-  const [date, setDate] = React.useState(() => new Date().toISOString().slice(0, 10))
-  const [vehicleNumber, setVehicleNumber] = React.useState('BY HAND')
-  const [partyName, setPartyName] = React.useState('')
-  const [siteName, setSiteName] = React.useState('')
-  const [kindAttn, setKindAttn] = React.useState('')
-  const [items, setItems] = React.useState<SimpleItem[]>([emptySimpleItem()])
+function SimpleCreateForm({ editing, onDone, onCancel }: { editing?: any; onDone: () => void; onCancel: () => void }) {
+  const [challanNumber, setChallanNumber] = React.useState(editing?.challanNumber || '')
+  const [date, setDate] = React.useState(() => editing?.date ? new Date(editing.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))
+  const [vehicleNumber, setVehicleNumber] = React.useState(editing?.vehicleNumber ?? 'BY HAND')
+  const [partyName, setPartyName] = React.useState(editing?.partyName || '')
+  const [siteName, setSiteName] = React.useState(editing?.siteName || '')
+  const [kindAttn, setKindAttn] = React.useState(editing?.kindAttn || '')
+  const [items, setItems] = React.useState<SimpleItem[]>(
+    editing?.items?.length
+      ? editing.items.map((it: any) => ({ description: it.description || '', unit: it.unit || "NO'S", quantity: String(it.quantity ?? '') }))
+      : [emptySimpleItem()]
+  )
   const [saving, setSaving] = React.useState(false)
 
   React.useEffect(() => {
+    if (editing) return
     fetchNextSimpleChallanNo().then(n => setChallanNumber(n.challanNumber)).catch(() => {})
-  }, [])
+  }, [editing])
 
   function updateItem(idx: number, patch: Partial<SimpleItem>) {
     setItems(prev => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
@@ -72,14 +77,16 @@ function SimpleCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
     if (valid.length === 0) { toast.error('Add at least one line item'); return }
     setSaving(true)
     try {
-      await createSimpleChallan({
+      const payload = {
         challanNumber, date, vehicleNumber, partyName, siteName, kindAttn,
         items: valid.map((it, i) => ({ lineNo: i + 1, description: it.description, unit: it.unit, quantity: Number(it.quantity) || 0 })),
-      })
-      toast.success('Delivery challan generated!')
+      }
+      if (editing) await updateSimpleChallan(editing.id, payload)
+      else await createSimpleChallan(payload)
+      toast.success(editing ? 'Delivery challan updated!' : 'Delivery challan generated!')
       onDone()
     } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to generate delivery challan')
+      toast.error(e?.response?.data?.error || (editing ? 'Failed to update delivery challan' : 'Failed to generate delivery challan'))
     } finally { setSaving(false) }
   }
 
@@ -89,7 +96,7 @@ function SimpleCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
         <button onClick={onCancel} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors">
           <ArrowLeft size={18} className="text-slate-500" />
         </button>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">New Delivery Challan</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{editing ? 'Edit Delivery Challan' : 'New Delivery Challan'}</h1>
       </div>
 
       <div className="card grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -169,7 +176,7 @@ function SimpleCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
       <div className="flex items-center gap-3">
         <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2">
           {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <FileText size={16} />}
-          {saving ? 'Generating...' : 'Generate Challan'}
+          {saving ? (editing ? 'Saving...' : 'Generating...') : (editing ? 'Save Changes' : 'Generate Challan')}
         </button>
         <button onClick={onCancel} className="btn-secondary">Cancel</button>
       </div>
@@ -178,35 +185,42 @@ function SimpleCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
 }
 
 // ── Create: Tax / GST-style challan ─────────────────────────────────────────────
-function TaxCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
-  const [challanNumber, setChallanNumber] = React.useState('')
-  const [date, setDate] = React.useState(() => new Date().toISOString().slice(0, 10))
-  const [billToName, setBillToName] = React.useState('')
-  const [billToAddress, setBillToAddress] = React.useState('')
-  const [billToGst, setBillToGst] = React.useState('')
-  const [billToMobile, setBillToMobile] = React.useState('')
-  const [billToEmail, setBillToEmail] = React.useState('')
-  const [billToState, setBillToState] = React.useState('Maharashtra')
-  const [sameAsBilling, setSameAsBilling] = React.useState(true)
-  const [shipToName, setShipToName] = React.useState('')
-  const [shipToAddress, setShipToAddress] = React.useState('')
-  const [shipToGst, setShipToGst] = React.useState('')
-  const [shipToState, setShipToState] = React.useState('')
-  const [poNumber, setPoNumber] = React.useState('')
-  const [poDate, setPoDate] = React.useState('')
-  const [purpose, setPurpose] = React.useState('Delivery')
-  const [dateOfSupply, setDateOfSupply] = React.useState('')
-  const [placeOfSupply, setPlaceOfSupply] = React.useState('Maharashtra')
-  const [vehicleNumber, setVehicleNumber] = React.useState('')
-  const [transportMode, setTransportMode] = React.useState('Road')
-  const [siteName, setSiteName] = React.useState('')
-  const [deliveredThrough, setDeliveredThrough] = React.useState('')
-  const [items, setItems] = React.useState<TaxItem[]>([emptyTaxItem()])
+function TaxCreateForm({ editing, onDone, onCancel }: { editing?: any; onDone: () => void; onCancel: () => void }) {
+  const [challanNumber, setChallanNumber] = React.useState(editing?.challanNumber || '')
+  const [date, setDate] = React.useState(() => editing?.date ? new Date(editing.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))
+  const [billToName, setBillToName] = React.useState(editing?.billToName || '')
+  const [billToAddress, setBillToAddress] = React.useState(editing?.billToAddress || '')
+  const [billToGst, setBillToGst] = React.useState(editing?.billToGst || '')
+  const [billToMobile, setBillToMobile] = React.useState(editing?.billToMobile || '')
+  const [billToEmail, setBillToEmail] = React.useState(editing?.billToEmail || '')
+  const [billToState, setBillToState] = React.useState(editing?.billToState || 'Maharashtra')
+  const [sameAsBilling, setSameAsBilling] = React.useState(
+    editing ? !(editing.shipToName || editing.shipToAddress || editing.shipToGst || editing.shipToState) : true
+  )
+  const [shipToName, setShipToName] = React.useState(editing?.shipToName || '')
+  const [shipToAddress, setShipToAddress] = React.useState(editing?.shipToAddress || '')
+  const [shipToGst, setShipToGst] = React.useState(editing?.shipToGst || '')
+  const [shipToState, setShipToState] = React.useState(editing?.shipToState || '')
+  const [poNumber, setPoNumber] = React.useState(editing?.poNumber || '')
+  const [poDate, setPoDate] = React.useState(editing?.poDate || '')
+  const [purpose, setPurpose] = React.useState(editing?.purpose || 'Delivery')
+  const [dateOfSupply, setDateOfSupply] = React.useState(editing?.dateOfSupply ? new Date(editing.dateOfSupply).toISOString().slice(0, 10) : '')
+  const [placeOfSupply, setPlaceOfSupply] = React.useState(editing?.placeOfSupply || 'Maharashtra')
+  const [vehicleNumber, setVehicleNumber] = React.useState(editing?.vehicleNumber || '')
+  const [transportMode, setTransportMode] = React.useState(editing?.transportMode || 'Road')
+  const [siteName, setSiteName] = React.useState(editing?.siteName || '')
+  const [deliveredThrough, setDeliveredThrough] = React.useState(editing?.deliveredThrough || '')
+  const [items, setItems] = React.useState<TaxItem[]>(
+    editing?.items?.length
+      ? editing.items.map((it: any) => ({ description: it.description || '', hsnCode: it.hsnCode || '', unit: it.unit || 'EA', quantity: String(it.quantity ?? '') }))
+      : [emptyTaxItem()]
+  )
   const [saving, setSaving] = React.useState(false)
 
   React.useEffect(() => {
+    if (editing) return
     fetchNextChallanNo().then(n => setChallanNumber(n.challanNumber)).catch(() => {})
-  }, [])
+  }, [editing])
 
   function updateItem(idx: number, patch: Partial<TaxItem>) {
     setItems(prev => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
@@ -220,7 +234,7 @@ function TaxCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: () 
     if (valid.length === 0) { toast.error('Add at least one line item'); return }
     setSaving(true)
     try {
-      await createChallan({
+      const payload = {
         challanNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
         shipToName: sameAsBilling ? '' : shipToName,
         shipToAddress: sameAsBilling ? '' : shipToAddress,
@@ -230,11 +244,13 @@ function TaxCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: () 
         dateOfSupply: dateOfSupply || date, placeOfSupply,
         vehicleNumber, transportMode, siteName, deliveredThrough,
         items: valid.map((it, i) => ({ lineNo: i + 1, description: it.description, hsnCode: it.hsnCode, unit: it.unit, quantity: Number(it.quantity) || 0 })),
-      })
-      toast.success('Tax delivery challan generated!')
+      }
+      if (editing) await updateChallan(editing.id, payload)
+      else await createChallan(payload)
+      toast.success(editing ? 'Tax delivery challan updated!' : 'Tax delivery challan generated!')
       onDone()
     } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to generate delivery challan')
+      toast.error(e?.response?.data?.error || (editing ? 'Failed to update delivery challan' : 'Failed to generate delivery challan'))
     } finally { setSaving(false) }
   }
 
@@ -244,7 +260,7 @@ function TaxCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: () 
         <button onClick={onCancel} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors">
           <ArrowLeft size={18} className="text-slate-500" />
         </button>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">New Tax Delivery Challan</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{editing ? 'Edit Tax Delivery Challan' : 'New Tax Delivery Challan'}</h1>
       </div>
 
       <div className="card grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -374,7 +390,7 @@ function TaxCreateForm({ onDone, onCancel }: { onDone: () => void; onCancel: () 
       <div className="flex items-center gap-3">
         <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2">
           {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <FileText size={16} />}
-          {saving ? 'Generating...' : 'Generate Challan'}
+          {saving ? (editing ? 'Saving...' : 'Generating...') : (editing ? 'Save Changes' : 'Generate Challan')}
         </button>
         <button onClick={onCancel} className="btn-secondary">Cancel</button>
       </div>
@@ -387,6 +403,7 @@ export default function DeliveryChallan() {
   const [view, setView] = React.useState<'list' | 'choose' | 'create-simple' | 'create-tax'>('list')
   const [challans, setChallans] = React.useState<any[]>([])
   const [preview, setPreview] = React.useState<any | null>(null)
+  const [editingChallan, setEditingChallan] = React.useState<any | null>(null)
   const [captureChallan, setCaptureChallan] = React.useState<any | null>(null)
   const [sharingKey, setSharingKey] = React.useState<string | null>(null)
   const captureRef = React.useRef<HTMLDivElement>(null)
@@ -480,7 +497,14 @@ export default function DeliveryChallan() {
 
   function afterCreate() {
     setView('list')
+    setEditingChallan(null)
     loadList()
+  }
+
+  function startEditChallan(c: any) {
+    setEditingChallan(c)
+    setPreview(null)
+    setView(c._type === 'simple' ? 'create-simple' : 'create-tax')
   }
 
   // ----- PREVIEW / PRINT MODAL -----
@@ -492,9 +516,14 @@ export default function DeliveryChallan() {
             <button onClick={() => setPreview(null)} className="btn-secondary flex items-center gap-2">
               <ArrowLeft size={16} /> Back
             </button>
-            <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">
-              <Printer size={16} /> Print / Save PDF
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => startEditChallan(preview)} className="btn-secondary flex items-center gap-2">
+                <Pencil size={16} /> Edit
+              </button>
+              <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">
+                <Printer size={16} /> Print / Save PDF
+              </button>
+            </div>
           </div>
           <div className="print-area bg-white p-4 rounded-lg">
             {preview._type === 'simple' ? <SimpleChallanDocument challan={preview} /> : <ChallanDocument challan={preview} />}
@@ -506,8 +535,8 @@ export default function DeliveryChallan() {
   }
 
   // ----- CREATE FORMS -----
-  if (view === 'create-simple') return <SimpleCreateForm onDone={afterCreate} onCancel={() => setView('list')} />
-  if (view === 'create-tax') return <TaxCreateForm onDone={afterCreate} onCancel={() => setView('list')} />
+  if (view === 'create-simple') return <SimpleCreateForm editing={editingChallan} onDone={afterCreate} onCancel={() => { setEditingChallan(null); setView('list') }} />
+  if (view === 'create-tax') return <TaxCreateForm editing={editingChallan} onDone={afterCreate} onCancel={() => { setEditingChallan(null); setView('list') }} />
 
   // ----- TYPE CHOOSER -----
   if (view === 'choose') {
@@ -542,7 +571,7 @@ export default function DeliveryChallan() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Delivery Challan</h1>
-        <button onClick={() => setView('choose')} className="btn-primary flex items-center gap-2"><Plus size={16} /> New Challan</button>
+        <button onClick={() => { setEditingChallan(null); setView('choose') }} className="btn-primary flex items-center gap-2"><Plus size={16} /> New Challan</button>
       </div>
 
       <div className="card p-0 overflow-hidden">
@@ -584,6 +613,7 @@ export default function DeliveryChallan() {
                           </button>
                           <button onClick={() => shareViaEmail(c)} title="Share via Email" className="hover:opacity-75 transition-opacity"><SiGmail size={16} color="#EA4335" /></button>
                           <button onClick={() => setPreview(c)} title="View / Print" className="text-blue-500 hover:text-blue-600"><Eye size={17} /></button>
+                          <button onClick={() => startEditChallan(c)} title="Edit" className="text-slate-400 hover:text-blue-600"><Pencil size={15} /></button>
                           <button onClick={() => remove(c)} title="Delete" className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                         </div>
                       </td>

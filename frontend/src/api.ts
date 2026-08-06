@@ -102,6 +102,7 @@ export const fetchChallans      = () => api.get('/delivery-challans').then(r => 
 export const fetchChallan       = (id: number) => api.get(`/delivery-challans/${id}`).then(r => r.data)
 export const fetchNextChallanNo = () => api.get('/delivery-challans/next-number').then(r => r.data)
 export const createChallan      = (d: any) => api.post('/delivery-challans', d).then(r => r.data)
+export const updateChallan      = (id: number, d: any) => api.put(`/delivery-challans/${id}`, d).then(r => r.data)
 export const deleteChallan      = (id: number) => api.delete(`/delivery-challans/${id}`).then(r => r.data)
 
 // Simple Delivery Challan (plain pad-style challan — no GST/HSN)
@@ -109,6 +110,7 @@ export const fetchSimpleChallans      = () => api.get('/simple-challans').then(r
 export const fetchSimpleChallan       = (id: number) => api.get(`/simple-challans/${id}`).then(r => r.data)
 export const fetchNextSimpleChallanNo = () => api.get('/simple-challans/next-number').then(r => r.data)
 export const createSimpleChallan      = (d: any) => api.post('/simple-challans', d).then(r => r.data)
+export const updateSimpleChallan      = (id: number, d: any) => api.put(`/simple-challans/${id}`, d).then(r => r.data)
 export const deleteSimpleChallan      = (id: number) => api.delete(`/simple-challans/${id}`).then(r => r.data)
 
 // Banking / Customer Ledger
