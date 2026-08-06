@@ -198,28 +198,24 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
         </tbody>
       </table>
 
-      {/* Totals */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', borderLeft: '1px solid #000', borderRight: '1px solid #000' }}>
-        <table style={{ width: 260, borderCollapse: 'collapse' }}>
-          <tbody>
-            <tr>
-              <td style={{ ...cell, textAlign: 'right' }}>Taxable Amount</td>
-              <td style={{ ...cell, width: 100, textAlign: 'right' }}>{inr(bill.subtotal)}</td>
-            </tr>
-            <tr>
-              <td style={{ ...cell, textAlign: 'right' }}>Add : CGST</td>
-              <td style={{ ...cell, textAlign: 'right' }}>{inr(bill.cgst)}</td>
-            </tr>
-            <tr>
-              <td style={{ ...cell, textAlign: 'right' }}>Add : SGST</td>
-              <td style={{ ...cell, textAlign: 'right' }}>{inr(bill.sgst)}</td>
-            </tr>
-            <tr>
-              <td style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>TOTAL</td>
-              <td style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>Rs. {inr(bill.total)}</td>
-            </tr>
-          </tbody>
-        </table>
+      {/* Totals — one summary row, not a stacked box */}
+      <div style={{ display: 'flex', borderLeft: '1px solid #000', borderRight: '1px solid #000' }}>
+        <div style={{ flex: 1, padding: '6px 10px', textAlign: 'center', borderRight: '1px solid #000' }}>
+          <div style={{ fontSize: 11, color: '#333' }}>Taxable Amount</div>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>{inr(bill.subtotal)}</div>
+        </div>
+        <div style={{ flex: 1, padding: '6px 10px', textAlign: 'center', borderRight: '1px solid #000' }}>
+          <div style={{ fontSize: 11, color: '#333' }}>Add : CGST</div>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>{inr(bill.cgst)}</div>
+        </div>
+        <div style={{ flex: 1, padding: '6px 10px', textAlign: 'center', borderRight: '1px solid #000' }}>
+          <div style={{ fontSize: 11, color: '#333' }}>Add : SGST</div>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>{inr(bill.sgst)}</div>
+        </div>
+        <div style={{ flex: 1, padding: '6px 10px', textAlign: 'center', background: '#f2f2f2' }}>
+          <div style={{ fontSize: 11, color: '#333' }}>TOTAL</div>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>Rs. {inr(bill.total)}</div>
+        </div>
       </div>
 
       {/* Amount in words */}
