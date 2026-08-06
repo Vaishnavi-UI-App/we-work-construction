@@ -277,7 +277,7 @@ function UsersTab({ roles, sites }: { roles: any[]; sites: any[] }) {
               <div key={u.id} className="card hover:shadow-md transition-shadow group">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 ${isAdmin ? 'bg-rose-500' : 'bg-purple-500'}`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 ${isAdmin ? 'bg-blue-600' : 'bg-purple-500'}`}>
                       {(u.name || u.email || 'U')[0].toUpperCase()}
                     </div>
                     <div className="min-w-0">

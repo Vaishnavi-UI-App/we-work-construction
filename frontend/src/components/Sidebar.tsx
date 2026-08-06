@@ -85,7 +85,7 @@ export default function Sidebar({ page, setPage, onLogout, user, theme, setTheme
 
       {/* User info */}
       <div className="mx-3 mt-3 mb-1 bg-white/5 rounded-xl px-4 py-3 flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${isAdmin ? 'bg-rose-500' : 'bg-purple-500'}`}>
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${isAdmin ? 'bg-blue-600' : 'bg-purple-500'}`}>
           {(user?.name || user?.email || 'U')[0].toUpperCase()}
         </div>
         <div className="min-w-0">
