@@ -94,6 +94,7 @@ export const fetchBill         = (id: number) => api.get(`/billing/${id}`).then(
 export const fetchNextBillNo   = () => api.get('/billing/next-number').then(r => r.data)
 export const fetchHsnCodes     = () => api.get('/billing/hsn').then(r => r.data)
 export const createBill        = (d: any) => api.post('/billing', d).then(r => r.data)
+export const updateBill        = (id: number, d: any) => api.put(`/billing/${id}`, d).then(r => r.data)
 export const deleteBill        = (id: number) => api.delete(`/billing/${id}`).then(r => r.data)
 
 // Delivery Challan

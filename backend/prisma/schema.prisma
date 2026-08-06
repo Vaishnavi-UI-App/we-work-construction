@@ -136,12 +136,13 @@ model SimpleChallanItem {
   unit        String        @default("NOS")
 }
 
-// Remembered product -> HSN/SAC mapping for quick reuse. Each HSN/SAC code
-// may only ever map to a single product description.
+// Remembered product -> HSN/SAC mapping for quick reuse. The same HSN/SAC
+// code can legitimately apply to many different products (it's a tax
+// classification, not a per-product identifier), so only description is unique.
 model HsnCode {
   id          Int      @id @default(autoincrement())
   description String   @unique
-  code        String   @unique
+  code        String
   unit        String?
   unitPrice   Float?
   updatedAt   DateTime @updatedAt

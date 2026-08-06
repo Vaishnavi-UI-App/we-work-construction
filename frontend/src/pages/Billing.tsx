@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
-import { Plus, Trash2, Printer, FileText, X, ArrowLeft, RefreshCw, Eye } from 'lucide-react'
+import { Plus, Trash2, Printer, FileText, X, ArrowLeft, RefreshCw, Eye, Pencil } from 'lucide-react'
 import { FaWhatsapp } from 'react-icons/fa'
 import { SiGmail } from 'react-icons/si'
-import { fetchBills, fetchNextBillNo, fetchHsnCodes, createBill, deleteBill } from '../api'
+import { fetchBills, fetchNextBillNo, fetchHsnCodes, createBill, updateBill, deleteBill } from '../api'
 import InvoiceDocument from '../components/InvoiceDocument'
 
 const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS']
@@ -71,6 +71,7 @@ export default function Billing() {
   const [gstRate, setGstRate] = React.useState(9)
   const [items, setItems] = React.useState<Item[]>([emptyItem()])
   const [saving, setSaving] = React.useState(false)
+  const [editingId, setEditingId] = React.useState<number | null>(null)
 
   async function loadList() {
     try { setBills(await fetchBills()) } catch { toast.error('Failed to load invoices') }
@@ -78,6 +79,7 @@ export default function Billing() {
   React.useEffect(() => { loadList() }, [])
 
   async function startCreate() {
+    setEditingId(null)
     setInvoiceNumber(''); setDate(new Date().toISOString().slice(0, 10))
     setBillToName(''); setBillToAddress(''); setBillToGst(''); setBillToMobile(''); setBillToEmail(''); setBillToState('Maharashtra')
     setSameAsBilling(true); setShipToName(''); setShipToAddress(''); setShipToGst(''); setShipToState('')
@@ -89,6 +91,39 @@ export default function Billing() {
       const [n, h] = await Promise.all([fetchNextBillNo(), fetchHsnCodes()])
       setInvoiceNumber(n.invoiceNumber); setHsn(h)
     } catch { /* non-fatal */ }
+    setView('create')
+  }
+
+  // Prefills the form from an existing bill and switches into edit mode — the
+  // same form/save flow as create, just targeting PUT instead of POST and
+  // keeping the existing invoice number instead of fetching the next one.
+  async function startEdit(bill: any) {
+    setEditingId(bill.id)
+    setInvoiceNumber(bill.invoiceNumber || '')
+    setDate(bill.date ? new Date(bill.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))
+    setBillToName(bill.billToName || ''); setBillToAddress(bill.billToAddress || ''); setBillToGst(bill.billToGst || '')
+    setBillToMobile(bill.billToMobile || ''); setBillToEmail(bill.billToEmail || ''); setBillToState(bill.billToState || 'Maharashtra')
+    const hasShipTo = !!(bill.shipToName || bill.shipToAddress || bill.shipToGst || bill.shipToState)
+    setSameAsBilling(!hasShipTo)
+    setShipToName(bill.shipToName || ''); setShipToAddress(bill.shipToAddress || '')
+    setShipToGst(bill.shipToGst || ''); setShipToState(bill.shipToState || '')
+    setPoNumber(bill.poNumber || ''); setPoDate(bill.poDate || '')
+    setVendorCode(bill.vendorCode || ''); setProjectCode(bill.projectCode || ''); setProjectName(bill.projectName || '')
+    setDateOfSupply(bill.dateOfSupply ? new Date(bill.dateOfSupply).toISOString().slice(0, 10) : '')
+    setPlaceOfSupply(bill.placeOfSupply || 'Maharashtra'); setReverseCharge(bill.reverseCharge || 'NO')
+    setVehicleNumber(bill.vehicleNumber || ''); setTransportMode(bill.transportMode || 'Road')
+    setSiteName(bill.siteName || ''); setDeliveredThrough(bill.deliveredThrough || '')
+    setGstRate(bill.gstRate ?? 9)
+    setItems(
+      (bill.items || []).length
+        ? bill.items.map((it: any) => ({
+            description: it.description || '', hsnCode: it.hsnCode || '',
+            unit: it.unit || 'EA', quantity: String(it.quantity ?? ''), unitPrice: String(it.unitPrice ?? ''),
+          }))
+        : [emptyItem()]
+    )
+    try { setHsn(await fetchHsnCodes()) } catch { /* non-fatal */ }
+    setPreview(null)
     setView('create')
   }
 
@@ -115,18 +150,6 @@ export default function Billing() {
     updateItem(idx, { hsnCode: value })
   }
 
-  // Each HSN/SAC code may only ever map to a single product — returns the conflicting
-  // product name if this row's code is already used for a different description.
-  function hsnConflict(hsnCode: string, description: string): string | null {
-    const code = hsnCode.trim()
-    const desc = description.trim()
-    if (!code) return null
-    const savedMatch = hsn.find((h: any) => h.code === code && h.description.trim() !== desc)
-    if (savedMatch) return savedMatch.description
-    const rowMatch = items.find(it => it.hsnCode.trim() === code && it.description.trim() && it.description.trim() !== desc)
-    return rowMatch ? rowMatch.description : null
-  }
-
   function addRow() { setItems(prev => [...prev, emptyItem()]) }
   function removeRow(idx: number) { setItems(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)) }
 
@@ -141,11 +164,9 @@ export default function Billing() {
     if (!billToName.trim()) { toast.error('Bill To name is required'); return }
     const valid = items.filter(it => it.description.trim())
     if (valid.length === 0) { toast.error('Add at least one line item'); return }
-    const conflicted = valid.find(it => hsnConflict(it.hsnCode, it.description))
-    if (conflicted) { toast.error(`HSN/SAC code "${conflicted.hsnCode}" is already used for another product`); return }
     setSaving(true)
     try {
-      const created = await createBill({
+      const payload = {
         invoiceNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
         shipToName: sameAsBilling ? '' : shipToName,
         shipToAddress: sameAsBilling ? '' : shipToAddress,
@@ -159,13 +180,15 @@ export default function Billing() {
           lineNo: i + 1, description: it.description, hsnCode: it.hsnCode,
           unit: it.unit, quantity: Number(it.quantity) || 0, unitPrice: Number(it.unitPrice) || 0,
         })),
-      })
-      toast.success('Invoice generated!')
+      }
+      const saved = editingId ? await updateBill(editingId, payload) : await createBill(payload)
+      toast.success(editingId ? 'Invoice updated!' : 'Invoice generated!')
       await loadList()
-      setPreview(created)
+      setPreview(saved)
       setView('list')
+      setEditingId(null)
     } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to generate invoice')
+      toast.error(e?.response?.data?.error || (editingId ? 'Failed to update invoice' : 'Failed to generate invoice'))
     } finally { setSaving(false) }
   }
 
@@ -252,9 +275,14 @@ export default function Billing() {
             <button onClick={() => setPreview(null)} className="btn-secondary flex items-center gap-2">
               <ArrowLeft size={16} /> Back
             </button>
-            <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">
-              <Printer size={16} /> Print / Save PDF
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => startEdit(preview)} className="btn-secondary flex items-center gap-2">
+                <Pencil size={16} /> Edit
+              </button>
+              <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">
+                <Printer size={16} /> Print / Save PDF
+              </button>
+            </div>
           </div>
           <div className="print-area bg-white p-4 rounded-lg">
             <InvoiceDocument bill={preview} />
@@ -273,7 +301,7 @@ export default function Billing() {
           <button onClick={() => setView('list')} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors">
             <ArrowLeft size={18} className="text-slate-500" />
           </button>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">New Tax Invoice</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{editingId ? 'Edit Tax Invoice' : 'New Tax Invoice'}</h1>
         </div>
 
         {/* Header fields */}
@@ -387,9 +415,7 @@ export default function Billing() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((it, idx) => {
-                  const conflict = hsnConflict(it.hsnCode, it.description)
-                  return (
+                {items.map((it, idx) => (
                   <tr key={idx} className="border-b border-slate-100 dark:border-white/5">
                     <td className="py-1.5 pr-2 text-center text-slate-500 dark:text-slate-400 font-medium tabular-nums">
                       {idx + 1}
@@ -399,13 +425,8 @@ export default function Billing() {
                         onChange={e => onDescriptionChange(idx, e.target.value)} placeholder="Product / description" />
                     </td>
                     <td className="py-1.5 pr-2">
-                      <input className={`input no-arrow !py-1.5 !px-2 ${conflict ? '!border-red-400' : ''}`} list="hsn-codes" value={it.hsnCode}
+                      <input className="input no-arrow !py-1.5 !px-2" list="hsn-codes" value={it.hsnCode}
                         onChange={e => onHsnChange(idx, e.target.value)} placeholder="85359090" />
-                      {conflict && (
-                        <p className="text-xs text-red-500 mt-1 whitespace-normal">
-                          Already used for "{conflict}"
-                        </p>
-                      )}
                     </td>
                     <td className="py-1.5 pr-2">
                       <select className="input !py-1.5 !px-2" value={it.unit} onChange={e => updateItem(idx, { unit: e.target.value })}>
@@ -427,8 +448,7 @@ export default function Billing() {
                       <button onClick={() => removeRow(idx)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
                     </td>
                   </tr>
-                  )
-                })}
+                ))}
               </tbody>
             </table>
           </div>
@@ -463,9 +483,9 @@ export default function Billing() {
         <div className="flex gap-3">
           <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2">
             {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <FileText size={16} />}
-            {saving ? 'Generating...' : 'Generate Invoice'}
+            {saving ? (editingId ? 'Saving...' : 'Generating...') : (editingId ? 'Save Changes' : 'Generate Invoice')}
           </button>
-          <button onClick={() => setView('list')} className="btn-secondary">Cancel</button>
+          <button onClick={() => { setEditingId(null); setView('list') }} className="btn-secondary">Cancel</button>
         </div>
       </div>
     )

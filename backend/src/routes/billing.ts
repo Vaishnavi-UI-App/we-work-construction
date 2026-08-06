@@ -116,26 +116,6 @@ export default function (prisma: PrismaClient) {
         }
       })
 
-      // Each HSN/SAC code may only ever map to a single product description
-      const codesInThisInvoice = new Map<string, string>()
-      for (const it of computedItems) {
-        if (!it.hsnCode) continue
-        const seenDesc = codesInThisInvoice.get(it.hsnCode)
-        if (seenDesc && seenDesc !== it.description) {
-          return res.status(400).json({
-            error: `HSN/SAC code "${it.hsnCode}" is used for both "${seenDesc}" and "${it.description}" in this invoice — each HSN code must map to a single product.`,
-          })
-        }
-        codesInThisInvoice.set(it.hsnCode, it.description)
-
-        const existing = await prisma.hsnCode.findUnique({ where: { code: it.hsnCode } })
-        if (existing && existing.description !== it.description) {
-          return res.status(400).json({
-            error: `HSN/SAC code "${it.hsnCode}" is already used for "${existing.description}". Each HSN code must map to a single product — use a different code or the existing product name.`,
-          })
-        }
-      }
-
       const subtotal = +computedItems.reduce((s, it) => s + it.amount, 0).toFixed(2)
       const cgst = +(subtotal * rate / 100).toFixed(2)
       const sgst = +(subtotal * rate / 100).toFixed(2)
@@ -184,6 +164,96 @@ export default function (prisma: PrismaClient) {
     } catch (err) {
       console.error(err)
       res.status(500).json({ error: 'Failed to create bill' })
+    }
+  })
+
+  // Update bill — replaces line items and recomputes totals the same way creation does
+  router.put('/:id', requirePermission('billing', 'canEdit'), async (req: any, res) => {
+    try {
+      const id = Number(req.params.id)
+      const existing = await prisma.bill.findUnique({ where: { id } })
+      if (!existing) return res.status(404).json({ error: 'Not found' })
+
+      const {
+        invoiceNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
+        shipToName, shipToAddress, shipToGst, shipToState,
+        poNumber, poDate, vendorCode, projectCode, projectName,
+        dateOfSupply, placeOfSupply, reverseCharge, vehicleNumber, transportMode, siteName, deliveredThrough,
+        gstRate, items,
+      } = req.body
+
+      if (!billToName) return res.status(400).json({ error: 'Bill To name is required' })
+      const rawItems = Array.isArray(items) ? items.filter((it: any) => it && it.description) : []
+      if (rawItems.length === 0) return res.status(400).json({ error: 'At least one line item is required' })
+
+      const rate = Number(gstRate) || 0
+      const computedItems = rawItems.map((it: any, i: number) => {
+        const quantity = Number(it.quantity) || 0
+        const unitPrice = Number(it.unitPrice) || 0
+        const amount = +(quantity * unitPrice).toFixed(2)
+        return {
+          lineNo: Number(it.lineNo) || (i + 1),
+          description: String(it.description),
+          hsnCode: it.hsnCode ? String(it.hsnCode) : null,
+          unit: it.unit ? String(it.unit) : 'EA',
+          quantity,
+          unitPrice,
+          amount,
+        }
+      })
+
+      const subtotal = +computedItems.reduce((s, it) => s + it.amount, 0).toFixed(2)
+      const cgst = +(subtotal * rate / 100).toFixed(2)
+      const sgst = +(subtotal * rate / 100).toFixed(2)
+      const total = +(subtotal + cgst + sgst).toFixed(2)
+      const amountInWords = numberToWords(total)
+
+      // Keep the existing invoice number unless a different, still-unique one is explicitly provided
+      let finalNumber = existing.invoiceNumber
+      const trimmedNumber = invoiceNumber ? String(invoiceNumber).trim() : ''
+      if (trimmedNumber && trimmedNumber !== existing.invoiceNumber) {
+        const clash = await prisma.bill.findUnique({ where: { invoiceNumber: trimmedNumber } })
+        if (clash) return res.status(400).json({ error: `Invoice number "${trimmedNumber}" is already used` })
+        finalNumber = trimmedNumber
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.billItem.deleteMany({ where: { billId: id } })
+        return tx.bill.update({
+          where: { id },
+          data: {
+            invoiceNumber: finalNumber,
+            date: date ? new Date(date) : existing.date,
+            billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
+            shipToName: shipToName || null, shipToAddress: shipToAddress || null,
+            shipToGst: shipToGst || null, shipToState: shipToState || null,
+            poNumber, poDate, vendorCode, projectCode, projectName,
+            dateOfSupply: dateOfSupply ? new Date(dateOfSupply) : existing.dateOfSupply,
+            placeOfSupply, reverseCharge: reverseCharge || 'NO', vehicleNumber, transportMode, siteName, deliveredThrough,
+            gstRate: rate, subtotal, cgst, sgst, total, amountInWords,
+            items: { create: computedItems },
+          },
+          include: { items: { orderBy: { lineNo: 'asc' } } },
+        })
+      })
+
+      // Remember HSN codes (product -> code) for quick reuse
+      for (const it of computedItems) {
+        if (it.hsnCode && it.description) {
+          try {
+            await prisma.hsnCode.upsert({
+              where: { description: it.description },
+              update: { code: it.hsnCode, unit: it.unit, unitPrice: it.unitPrice },
+              create: { description: it.description, code: it.hsnCode, unit: it.unit, unitPrice: it.unitPrice },
+            })
+          } catch (e) { /* ignore individual hsn save errors */ }
+        }
+      }
+
+      res.json(updated)
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ error: 'Failed to update bill' })
     }
   })
 
