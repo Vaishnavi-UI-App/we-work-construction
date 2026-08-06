@@ -95,7 +95,7 @@ export const fetchNextBillNo   = () => api.get('/billing/next-number').then(r =>
 export const fetchHsnCodes     = () => api.get('/billing/hsn').then(r => r.data)
 export const createBill        = (d: any) => api.post('/billing', d).then(r => r.data)
 export const updateBill        = (id: number, d: any) => api.put(`/billing/${id}`, d).then(r => r.data)
-export const deleteBill        = (id: number) => api.delete(`/billing/${id}`).then(r => r.data)
+export const deleteBill        = (id: number, reason: string) => api.delete(`/billing/${id}`, { data: { reason } }).then(r => r.data)
 
 // Delivery Challan
 export const fetchChallans      = () => api.get('/delivery-challans').then(r => r.data)
@@ -103,7 +103,7 @@ export const fetchChallan       = (id: number) => api.get(`/delivery-challans/${
 export const fetchNextChallanNo = () => api.get('/delivery-challans/next-number').then(r => r.data)
 export const createChallan      = (d: any) => api.post('/delivery-challans', d).then(r => r.data)
 export const updateChallan      = (id: number, d: any) => api.put(`/delivery-challans/${id}`, d).then(r => r.data)
-export const deleteChallan      = (id: number) => api.delete(`/delivery-challans/${id}`).then(r => r.data)
+export const deleteChallan      = (id: number, reason: string) => api.delete(`/delivery-challans/${id}`, { data: { reason } }).then(r => r.data)
 
 // Simple Delivery Challan (plain pad-style challan — no GST/HSN)
 export const fetchSimpleChallans      = () => api.get('/simple-challans').then(r => r.data)
@@ -111,7 +111,7 @@ export const fetchSimpleChallan       = (id: number) => api.get(`/simple-challan
 export const fetchNextSimpleChallanNo = () => api.get('/simple-challans/next-number').then(r => r.data)
 export const createSimpleChallan      = (d: any) => api.post('/simple-challans', d).then(r => r.data)
 export const updateSimpleChallan      = (id: number, d: any) => api.put(`/simple-challans/${id}`, d).then(r => r.data)
-export const deleteSimpleChallan      = (id: number) => api.delete(`/simple-challans/${id}`).then(r => r.data)
+export const deleteSimpleChallan      = (id: number, reason: string) => api.delete(`/simple-challans/${id}`, { data: { reason } }).then(r => r.data)
 
 // Banking / Customer Ledger
 export const fetchBankingSummary = () => api.get('/banking/summary').then(r => r.data)

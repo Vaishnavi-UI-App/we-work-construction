@@ -243,6 +243,20 @@ model Audit {
   createdAt DateTime @default(now())
 }
 
+// Records why a financial document (invoice / delivery challan) was deleted.
+// The record itself is gone after deletion, so entityLabel snapshots enough
+// to identify what it was (invoice/challan number, party name) after the fact.
+model DeletionLog {
+  id             Int      @id @default(autoincrement())
+  entityType     String   // "invoice" | "delivery-challan" | "simple-challan"
+  entityId       Int
+  entityLabel    String
+  reason         String
+  deletedById    Int?
+  deletedByName  String?
+  createdAt      DateTime @default(now())
+}
+
 model Customer {
   id        Int       @id @default(autoincrement())
   name      String

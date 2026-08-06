@@ -257,13 +257,27 @@ export default function (prisma: PrismaClient) {
     }
   })
 
-  // Delete bill
+  // Delete bill — requires a reason, logged before the record is gone
   router.delete('/:id', requirePermission('billing', 'canDelete'), async (req: any, res) => {
+    const reason = req.body?.reason ? String(req.body.reason).trim() : ''
+    if (!reason) return res.status(400).json({ error: 'A reason is required to delete an invoice' })
     try {
       const id = Number(req.params.id)
-      await prisma.bill.delete({ where: { id } })
+      const existing = await prisma.bill.findUnique({ where: { id } })
+      if (!existing) return res.status(404).json({ error: 'Not found' })
+
+      await prisma.$transaction([
+        prisma.deletionLog.create({
+          data: {
+            entityType: 'invoice', entityId: id, entityLabel: existing.invoiceNumber,
+            reason, deletedById: req.user?.id, deletedByName: req.user?.email,
+          },
+        }),
+        prisma.bill.delete({ where: { id } }),
+      ])
       res.json({ ok: true })
     } catch (err) {
+      console.error(err)
       res.status(500).json({ error: 'Failed to delete bill' })
     }
   })

@@ -8,6 +8,7 @@ import { FaWhatsapp } from 'react-icons/fa'
 import { SiGmail } from 'react-icons/si'
 import { fetchBills, fetchNextBillNo, fetchHsnCodes, fetchCustomers, createBill, updateBill, deleteBill } from '../api'
 import InvoiceDocument from '../components/InvoiceDocument'
+import DeleteReasonModal from '../components/DeleteReasonModal'
 
 const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS', 'CUM']
 
@@ -39,9 +40,8 @@ export default function Billing() {
   const [hsn, setHsn] = React.useState<any[]>([])
   const [customers, setCustomers] = React.useState<any[]>([])
   const [preview, setPreview] = React.useState<any | null>(null)
-  const [captureBill, setCaptureBill] = React.useState<any | null>(null)
-  const [sharingId, setSharingId] = React.useState<number | null>(null)
-  const captureRef = React.useRef<HTMLDivElement>(null)
+  const [sharing, setSharing] = React.useState(false)
+  const previewRef = React.useRef<HTMLDivElement>(null)
 
   // form state
   const [invoiceNumber, setInvoiceNumber] = React.useState('')
@@ -73,6 +73,7 @@ export default function Billing() {
   const [items, setItems] = React.useState<Item[]>([emptyItem()])
   const [saving, setSaving] = React.useState(false)
   const [editingId, setEditingId] = React.useState<number | null>(null)
+  const [deleteTarget, setDeleteTarget] = React.useState<any | null>(null)
 
   async function loadList() {
     try { setBills(await fetchBills()) } catch { toast.error('Failed to load invoices') }
@@ -209,25 +210,29 @@ export default function Billing() {
     } finally { setSaving(false) }
   }
 
-  async function remove(id: number) {
-    if (!confirm('Delete this invoice?')) return
-    try { await deleteBill(id); toast.success('Deleted'); loadList() }
-    catch { toast.error('Failed to delete') }
+  async function removeWithReason(id: number, reason: string) {
+    try {
+      await deleteBill(id, reason)
+      toast.success('Deleted')
+      setDeleteTarget(null)
+      setPreview(null)
+      loadList()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to delete')
+    }
   }
 
-  // Renders the invoice off-screen and captures it as a PDF. We deliberately do NOT call
-  // window.open()/navigator.share() here: both require a live user gesture, which is gone
-  // by the time this async work (html2canvas + jsPDF) finishes, so browsers silently block
-  // them — no error, nothing happens, which is exactly the symptom this replaced. Instead
-  // we show a toast with a real <a> link; a genuine click on it is a fresh user gesture that
-  // no popup blocker can touch.
+  // Captures the invoice preview (already rendered in the modal below) as a PDF. We
+  // deliberately do NOT call window.open()/navigator.share() here: both require a live
+  // user gesture, which is gone by the time this async work (html2canvas + jsPDF)
+  // finishes, so browsers silently block them — no error, nothing happens, which is
+  // exactly the symptom this replaced. Instead we show a toast with a real <a> link;
+  // a genuine click on it is a fresh user gesture that no popup blocker can touch.
   async function handleShareWhatsApp(bill: any) {
-    setSharingId(bill.id)
+    setSharing(true)
     try {
-      setCaptureBill(bill)
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-      const node = captureRef.current
-      if (!node) throw new Error('capture container not ready')
+      const node = previewRef.current
+      if (!node) throw new Error('preview not ready')
 
       const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
       const imgData = canvas.toDataURL('image/png')
@@ -275,8 +280,7 @@ export default function Billing() {
       console.error('WhatsApp share failed:', err)
       toast.error(`Could not share invoice PDF: ${err?.message || err}`)
     } finally {
-      setCaptureBill(null)
-      setSharingId(null)
+      setSharing(false)
     }
   }
 
@@ -288,23 +292,41 @@ export default function Billing() {
     return createPortal(
       <div className="fixed inset-0 z-50 bg-black/70 overflow-auto p-4 print:p-0 print:bg-white flex justify-center">
         <div className="max-w-4xl w-full">
-          <div className="flex items-center justify-between mb-3 no-print">
+          <div className="flex items-center justify-between mb-3 no-print flex-wrap gap-2">
             <button onClick={() => setPreview(null)} className="btn-secondary flex items-center gap-2">
               <ArrowLeft size={16} /> Back
             </button>
             <div className="flex items-center gap-3">
+              <button onClick={() => handleShareWhatsApp(preview)} disabled={sharing} title="Share on WhatsApp"
+                className="hover:opacity-75 transition-opacity disabled:opacity-50">
+                {sharing ? <RefreshCw size={20} className="animate-spin text-slate-400" /> : <FaWhatsapp size={20} color="#25D366" />}
+              </button>
+              <button onClick={() => shareViaEmail(preview)} title="Share via Email" className="hover:opacity-75 transition-opacity">
+                <SiGmail size={18} color="#EA4335" />
+              </button>
               <button onClick={() => startEdit(preview)} className="btn-secondary flex items-center gap-2">
                 <Pencil size={16} /> Edit
               </button>
               <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">
                 <Printer size={16} /> Print / Save PDF
               </button>
+              <button onClick={() => setDeleteTarget(preview)} title="Delete" className="text-slate-400 hover:text-red-500 transition-colors">
+                <Trash2 size={20} />
+              </button>
             </div>
           </div>
-          <div className="print-area bg-white p-4 rounded-lg">
+          <div className="print-area bg-white p-4 rounded-lg" ref={previewRef}>
             <InvoiceDocument bill={preview} />
           </div>
         </div>
+        {deleteTarget && (
+          <DeleteReasonModal
+            title="Delete Invoice"
+            itemLabel={`Invoice ${deleteTarget.invoiceNumber}`}
+            onClose={() => setDeleteTarget(null)}
+            onConfirm={(reason) => removeWithReason(deleteTarget.id, reason)}
+          />
+        )}
       </div>,
       document.body
     )
@@ -547,13 +569,8 @@ export default function Billing() {
                     <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{b.billToName}</td>
                     <td className="py-3 px-4 text-right font-medium tabular-nums">{inr(b.total)}</td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center justify-center gap-3">
-                        <button onClick={() => handleShareWhatsApp(b)} disabled={sharingId === b.id} title="Share on WhatsApp" className="hover:opacity-75 transition-opacity disabled:opacity-50">
-                          {sharingId === b.id ? <RefreshCw size={18} className="animate-spin text-slate-400" /> : <FaWhatsapp size={18} color="#25D366" />}
-                        </button>
-                        <button onClick={() => shareViaEmail(b)} title="Share via Email" className="hover:opacity-75 transition-opacity"><SiGmail size={16} color="#EA4335" /></button>
+                      <div className="flex items-center justify-center">
                         <button onClick={() => setPreview(b)} title="View / Print" className="text-blue-500 hover:text-blue-600"><Eye size={17} /></button>
-                        <button onClick={() => remove(b.id)} title="Delete" className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                       </div>
                     </td>
                   </tr>
@@ -564,15 +581,13 @@ export default function Billing() {
         )}
       </div>
 
-      {captureBill && (
-        // html2canvas can't reliably capture elements parked far off-screen (e.g. left: -10000px) —
-        // it clips/blanks them in some browsers — so this renders on-screen instead, on top of
-        // everything, for the brief moment it takes to snapshot it.
-        <div style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999, background: '#fff' }}>
-          <div ref={captureRef} style={{ width: 860, background: '#fff' }}>
-            <InvoiceDocument bill={captureBill} />
-          </div>
-        </div>
+      {deleteTarget && (
+        <DeleteReasonModal
+          title="Delete Invoice"
+          itemLabel={`Invoice ${deleteTarget.invoiceNumber}`}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={(reason) => removeWithReason(deleteTarget.id, reason)}
+        />
       )}
     </div>
   )

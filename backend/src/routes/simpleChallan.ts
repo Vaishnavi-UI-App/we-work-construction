@@ -126,11 +126,24 @@ export default function (prisma: PrismaClient) {
     }
   })
 
-  // Delete challan
+  // Delete challan — requires a reason, logged before the record is gone
   router.delete('/:id', requirePermission('simple-challan', 'canDelete'), async (req: any, res) => {
+    const reason = req.body?.reason ? String(req.body.reason).trim() : ''
+    if (!reason) return res.status(400).json({ error: 'A reason is required to delete a delivery challan' })
     try {
       const id = Number(req.params.id)
-      await prisma.simpleChallan.delete({ where: { id } })
+      const existing = await prisma.simpleChallan.findUnique({ where: { id } })
+      if (!existing) return res.status(404).json({ error: 'Not found' })
+
+      await prisma.$transaction([
+        prisma.deletionLog.create({
+          data: {
+            entityType: 'simple-challan', entityId: id, entityLabel: existing.challanNumber,
+            reason, deletedById: req.user?.id, deletedByName: req.user?.email,
+          },
+        }),
+        prisma.simpleChallan.delete({ where: { id } }),
+      ])
       res.json({ ok: true })
     } catch (err) {
       res.status(500).json({ error: 'Failed to delete delivery challan' })

@@ -12,6 +12,7 @@ import {
 } from '../api'
 import ChallanDocument from '../components/ChallanDocument'
 import SimpleChallanDocument from '../components/SimpleChallanDocument'
+import DeleteReasonModal from '../components/DeleteReasonModal'
 
 type ChallanType = 'simple' | 'tax'
 
@@ -404,9 +405,9 @@ export default function DeliveryChallan() {
   const [challans, setChallans] = React.useState<any[]>([])
   const [preview, setPreview] = React.useState<any | null>(null)
   const [editingChallan, setEditingChallan] = React.useState<any | null>(null)
-  const [captureChallan, setCaptureChallan] = React.useState<any | null>(null)
-  const [sharingKey, setSharingKey] = React.useState<string | null>(null)
-  const captureRef = React.useRef<HTMLDivElement>(null)
+  const [deleteTarget, setDeleteTarget] = React.useState<any | null>(null)
+  const [sharing, setSharing] = React.useState(false)
+  const previewRef = React.useRef<HTMLDivElement>(null)
 
   async function loadList() {
     const [simpleRes, taxRes] = await Promise.allSettled([fetchSimpleChallans(), fetchChallans()])
@@ -420,29 +421,30 @@ export default function DeliveryChallan() {
   }
   React.useEffect(() => { loadList() }, [])
 
-  async function remove(c: any) {
-    if (!confirm('Delete this delivery challan?')) return
+  async function removeWithReason(c: any, reason: string) {
     try {
-      if (c._type === 'simple') await deleteSimpleChallan(c.id)
-      else await deleteChallan(c.id)
+      if (c._type === 'simple') await deleteSimpleChallan(c.id, reason)
+      else await deleteChallan(c.id, reason)
       toast.success('Deleted')
+      setDeleteTarget(null)
+      setPreview(null)
       loadList()
-    } catch { toast.error('Failed to delete') }
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to delete')
+    }
   }
 
-  // Renders the challan off-screen and captures it as a PDF. We do NOT call
-  // window.open()/navigator.share() here — both require a live user gesture, which is gone
-  // by the time this async work (html2canvas + jsPDF) finishes, so browsers silently block
-  // them. Instead we show a toast with a real <a> link; a genuine click on it is a fresh
-  // user gesture that no popup blocker can touch.
+  // Captures the challan preview (already rendered in the modal below) as a PDF. We
+  // do NOT call window.open()/navigator.share() here — both require a live user
+  // gesture, which is gone by the time this async work (html2canvas + jsPDF)
+  // finishes, so browsers silently block them. Instead we show a toast with a real
+  // <a> link; a genuine click on it is a fresh user gesture that no popup blocker
+  // can touch.
   async function handleShareWhatsApp(challan: any) {
-    const key = `${challan._type}-${challan.id}`
-    setSharingKey(key)
+    setSharing(true)
     try {
-      setCaptureChallan(challan)
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
-      const node = captureRef.current
-      if (!node) throw new Error('capture container not ready')
+      const node = previewRef.current
+      if (!node) throw new Error('preview not ready')
 
       const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
       const imgData = canvas.toDataURL('image/png')
@@ -490,8 +492,7 @@ export default function DeliveryChallan() {
       console.error('WhatsApp share failed:', err)
       toast.error(`Could not share delivery challan PDF: ${err?.message || err}`)
     } finally {
-      setCaptureChallan(null)
-      setSharingKey(null)
+      setSharing(false)
     }
   }
 
@@ -512,23 +513,41 @@ export default function DeliveryChallan() {
     return createPortal(
       <div className="fixed inset-0 z-50 bg-black/70 overflow-auto p-4 print:p-0 print:bg-white flex justify-center">
         <div className="max-w-4xl w-full">
-          <div className="flex items-center justify-between mb-3 no-print">
+          <div className="flex items-center justify-between mb-3 no-print flex-wrap gap-2">
             <button onClick={() => setPreview(null)} className="btn-secondary flex items-center gap-2">
               <ArrowLeft size={16} /> Back
             </button>
             <div className="flex items-center gap-3">
+              <button onClick={() => handleShareWhatsApp(preview)} disabled={sharing} title="Share on WhatsApp"
+                className="hover:opacity-75 transition-opacity disabled:opacity-50">
+                {sharing ? <RefreshCw size={20} className="animate-spin text-slate-400" /> : <FaWhatsapp size={20} color="#25D366" />}
+              </button>
+              <button onClick={() => shareViaEmail(preview)} title="Share via Email" className="hover:opacity-75 transition-opacity">
+                <SiGmail size={18} color="#EA4335" />
+              </button>
               <button onClick={() => startEditChallan(preview)} className="btn-secondary flex items-center gap-2">
                 <Pencil size={16} /> Edit
               </button>
               <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">
                 <Printer size={16} /> Print / Save PDF
               </button>
+              <button onClick={() => setDeleteTarget(preview)} title="Delete" className="text-slate-400 hover:text-red-500 transition-colors">
+                <Trash2 size={20} />
+              </button>
             </div>
           </div>
-          <div className="print-area bg-white p-4 rounded-lg">
+          <div className="print-area bg-white p-4 rounded-lg" ref={previewRef}>
             {preview._type === 'simple' ? <SimpleChallanDocument challan={preview} /> : <ChallanDocument challan={preview} />}
           </div>
         </div>
+        {deleteTarget && (
+          <DeleteReasonModal
+            title="Delete Delivery Challan"
+            itemLabel={`Challan ${deleteTarget.challanNumber}`}
+            onClose={() => setDeleteTarget(null)}
+            onConfirm={(reason) => removeWithReason(deleteTarget, reason)}
+          />
+        )}
       </div>,
       document.body
     )
@@ -607,14 +626,8 @@ export default function DeliveryChallan() {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center justify-center gap-3">
-                          <button onClick={() => handleShareWhatsApp(c)} disabled={sharingKey === key} title="Share on WhatsApp" className="hover:opacity-75 transition-opacity disabled:opacity-50">
-                            {sharingKey === key ? <RefreshCw size={18} className="animate-spin text-slate-400" /> : <FaWhatsapp size={18} color="#25D366" />}
-                          </button>
-                          <button onClick={() => shareViaEmail(c)} title="Share via Email" className="hover:opacity-75 transition-opacity"><SiGmail size={16} color="#EA4335" /></button>
+                        <div className="flex items-center justify-center">
                           <button onClick={() => setPreview(c)} title="View / Print" className="text-blue-500 hover:text-blue-600"><Eye size={17} /></button>
-                          <button onClick={() => startEditChallan(c)} title="Edit" className="text-slate-400 hover:text-blue-600"><Pencil size={15} /></button>
-                          <button onClick={() => remove(c)} title="Delete" className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                         </div>
                       </td>
                     </tr>
@@ -626,12 +639,13 @@ export default function DeliveryChallan() {
         )}
       </div>
 
-      {captureChallan && (
-        <div style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999, background: '#fff' }}>
-          <div ref={captureRef} style={{ width: 860, background: '#fff' }}>
-            {captureChallan._type === 'simple' ? <SimpleChallanDocument challan={captureChallan} /> : <ChallanDocument challan={captureChallan} />}
-          </div>
-        </div>
+      {deleteTarget && (
+        <DeleteReasonModal
+          title="Delete Delivery Challan"
+          itemLabel={`Challan ${deleteTarget.challanNumber}`}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={(reason) => removeWithReason(deleteTarget, reason)}
+        />
       )}
     </div>
   )
