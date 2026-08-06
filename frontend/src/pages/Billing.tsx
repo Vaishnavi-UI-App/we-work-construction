@@ -9,7 +9,7 @@ import { SiGmail } from 'react-icons/si'
 import { fetchBills, fetchNextBillNo, fetchHsnCodes, createBill, updateBill, deleteBill } from '../api'
 import InvoiceDocument from '../components/InvoiceDocument'
 
-const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS', 'SUM']
+const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS', 'CUM']
 
 type Item = { description: string; hsnCode: string; unit: string; quantity: string; unitPrice: string }
 
