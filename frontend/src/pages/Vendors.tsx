@@ -1,6 +1,6 @@
 import React from 'react'
 import { fetchVendors, deleteVendor } from '../api'
-import { Plus, Trash2, Truck, Phone, LayoutGrid, List, Briefcase } from 'lucide-react'
+import { Plus, Trash2, Pencil, Truck, Phone, LayoutGrid, List, Briefcase } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CreateVendor from './CreateVendor'
 
@@ -8,6 +8,7 @@ export default function Vendors() {
   const [vendors, setVendors] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
   const [showCreate, setShowCreate] = React.useState(false)
+  const [editing, setEditing] = React.useState<any | null>(null)
   const [view, setView] = React.useState<'grid' | 'list'>('grid')
 
   function load() {
@@ -22,7 +23,15 @@ export default function Vendors() {
     catch { toast.error('Failed to delete') }
   }
 
-  if (showCreate) return <CreateVendor onDone={() => { setShowCreate(false); load() }} onBack={() => setShowCreate(false)} />
+  if (showCreate || editing) {
+    return (
+      <CreateVendor
+        initial={editing}
+        onDone={() => { setShowCreate(false); setEditing(null); load() }}
+        onBack={() => { setShowCreate(false); setEditing(null) }}
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -70,9 +79,14 @@ export default function Vendors() {
                     <p className="text-xs text-slate-400">Vendor {v.id}</p>
                   </div>
                 </div>
-                <button onClick={() => remove(v.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all">
-                  <Trash2 size={16} />
-                </button>
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                  <button onClick={() => setEditing(v)} className="text-slate-300 hover:text-blue-500">
+                    <Pencil size={15} />
+                  </button>
+                  <button onClick={() => remove(v.id)} className="text-slate-300 hover:text-red-400">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
               <div className="mt-4 space-y-1.5">
                 {v.agencyCode && <p className="text-sm text-slate-500 flex items-center gap-2"><Briefcase size={13} />Agency: {v.agencyCode}</p>}
@@ -104,10 +118,15 @@ export default function Vendors() {
                     <td className="py-3 px-4 text-slate-600">{v.agencyCode || <span className="text-slate-300">—</span>}</td>
                     <td className="py-3 px-4 text-slate-600">{v.phone || <span className="text-slate-300">—</span>}</td>
                     <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">{new Date(v.createdAt).toLocaleDateString('en-IN')}</td>
-                    <td className="py-3 px-4 text-center">
-                      <button onClick={() => remove(v.id)} className="text-slate-300 hover:text-red-500 transition-colors">
-                        <Trash2 size={15} />
-                      </button>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center justify-center gap-3">
+                        <button onClick={() => setEditing(v)} className="text-slate-400 hover:text-blue-500 transition-colors">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => remove(v.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

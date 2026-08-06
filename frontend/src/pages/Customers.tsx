@@ -1,6 +1,6 @@
 import React from 'react'
 import { fetchCustomers, deleteCustomer } from '../api'
-import { Plus, Trash2, User, Phone, MapPin, Mail, Globe, ShieldCheck, LayoutGrid, List } from 'lucide-react'
+import { Plus, Trash2, Pencil, User, Phone, MapPin, Mail, Globe, ShieldCheck, LayoutGrid, List } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CreateCustomer from './CreateCustomer'
 
@@ -8,6 +8,7 @@ export default function Customers() {
   const [customers, setCustomers] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
   const [showCreate, setShowCreate] = React.useState(false)
+  const [editing, setEditing] = React.useState<any | null>(null)
   const [view, setView] = React.useState<'grid' | 'list'>('grid')
 
   function load() {
@@ -22,7 +23,15 @@ export default function Customers() {
     catch { toast.error('Failed to delete') }
   }
 
-  if (showCreate) return <CreateCustomer onDone={() => { setShowCreate(false); load() }} onBack={() => setShowCreate(false)} />
+  if (showCreate || editing) {
+    return (
+      <CreateCustomer
+        initial={editing}
+        onDone={() => { setShowCreate(false); setEditing(null); load() }}
+        onBack={() => { setShowCreate(false); setEditing(null) }}
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -70,9 +79,14 @@ export default function Customers() {
                     <p className="text-xs text-slate-400">Customer {c.id}</p>
                   </div>
                 </div>
-                <button onClick={() => remove(c.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all">
-                  <Trash2 size={16} />
-                </button>
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                  <button onClick={() => setEditing(c)} className="text-slate-300 hover:text-blue-500">
+                    <Pencil size={15} />
+                  </button>
+                  <button onClick={() => remove(c.id)} className="text-slate-300 hover:text-red-400">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
               <div className="mt-4 space-y-1.5">
                 {c.phone && <p className="text-sm text-slate-500 flex items-center gap-2"><Phone size={13} />{c.phone}</p>}
@@ -118,10 +132,15 @@ export default function Customers() {
                     <td className="py-3 px-4 text-slate-600">{c.gst || <span className="text-slate-300">—</span>}</td>
                     <td className="py-3 px-4 text-slate-600">{c.state || <span className="text-slate-300">—</span>}</td>
                     <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">{new Date(c.createdAt).toLocaleDateString('en-IN')}</td>
-                    <td className="py-3 px-4 text-center">
-                      <button onClick={() => remove(c.id)} className="text-slate-300 hover:text-red-500 transition-colors">
-                        <Trash2 size={15} />
-                      </button>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center justify-center gap-3">
+                        <button onClick={() => setEditing(c)} className="text-slate-400 hover:text-blue-500 transition-colors">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => remove(c.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

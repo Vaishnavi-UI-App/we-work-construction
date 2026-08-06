@@ -1,17 +1,17 @@
 import React from 'react'
-import { createCustomer } from '../api'
+import { createCustomer, updateCustomer } from '../api'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function CreateCustomer({ onDone, onBack }: { onDone?: () => void; onBack?: () => void }) {
-  const [name, setName] = React.useState('')
-  const [phone, setPhone] = React.useState('')
-  const [email, setEmail] = React.useState('')
-  const [website, setWebsite] = React.useState('')
-  const [address, setAddress] = React.useState('')
-  const [gst, setGst] = React.useState('')
-  const [state, setState] = React.useState('Maharashtra')
-  const [stateCode, setStateCode] = React.useState('27')
+export default function CreateCustomer({ initial, onDone, onBack }: { initial?: any; onDone?: () => void; onBack?: () => void }) {
+  const [name, setName] = React.useState(initial?.name || '')
+  const [phone, setPhone] = React.useState(initial?.phone || '')
+  const [email, setEmail] = React.useState(initial?.email || '')
+  const [website, setWebsite] = React.useState(initial?.website || '')
+  const [address, setAddress] = React.useState(initial?.address || '')
+  const [gst, setGst] = React.useState(initial?.gst || '')
+  const [state, setState] = React.useState(initial?.state || 'Maharashtra')
+  const [stateCode, setStateCode] = React.useState(initial?.stateCode || '27')
   const [loading, setLoading] = React.useState(false)
 
   async function submit(e: React.FormEvent) {
@@ -19,10 +19,15 @@ export default function CreateCustomer({ onDone, onBack }: { onDone?: () => void
     if (!name.trim()) { toast.error('Name is required'); return }
     setLoading(true)
     try {
-      await createCustomer({ name, phone, email, website, address, gst, state, stateCode })
-      toast.success('Customer created!')
+      if (initial) {
+        await updateCustomer(initial.id, { name, phone, email, website, address, gst, state, stateCode })
+        toast.success('Customer updated!')
+      } else {
+        await createCustomer({ name, phone, email, website, address, gst, state, stateCode })
+        toast.success('Customer created!')
+      }
       onDone?.()
-    } catch { toast.error('Failed to create customer') }
+    } catch { toast.error(initial ? 'Failed to update customer' : 'Failed to create customer') }
     finally { setLoading(false) }
   }
 
@@ -32,7 +37,7 @@ export default function CreateCustomer({ onDone, onBack }: { onDone?: () => void
         <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
           <ArrowLeft size={18} className="text-slate-500" />
         </button>
-        <h1 className="text-2xl font-bold text-slate-800">Add Customer</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{initial ? 'Edit Customer' : 'Add Customer'}</h1>
       </div>
       <form onSubmit={submit} className="card space-y-4">
         <div>
@@ -74,7 +79,7 @@ export default function CreateCustomer({ onDone, onBack }: { onDone?: () => void
         <div className="flex gap-3 pt-2">
           <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
             {loading && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-            {loading ? 'Saving...' : 'Save Customer'}
+            {loading ? 'Saving...' : (initial ? 'Save Changes' : 'Save Customer')}
           </button>
           <button type="button" onClick={onBack} className="btn-secondary">Cancel</button>
         </div>

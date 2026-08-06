@@ -1,12 +1,12 @@
 import React from 'react'
-import { createVendor } from '../api'
+import { createVendor, updateVendor } from '../api'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function CreateVendor({ onDone, onBack }: { onDone?: () => void; onBack?: () => void }) {
-  const [name, setName] = React.useState('')
-  const [agencyCode, setAgencyCode] = React.useState('')
-  const [phone, setPhone] = React.useState('')
+export default function CreateVendor({ initial, onDone, onBack }: { initial?: any; onDone?: () => void; onBack?: () => void }) {
+  const [name, setName] = React.useState(initial?.name || '')
+  const [agencyCode, setAgencyCode] = React.useState(initial?.agencyCode || '')
+  const [phone, setPhone] = React.useState(initial?.phone || '')
   const [loading, setLoading] = React.useState(false)
 
   async function submit(e: React.FormEvent) {
@@ -14,10 +14,15 @@ export default function CreateVendor({ onDone, onBack }: { onDone?: () => void; 
     if (!name.trim()) { toast.error('Name is required'); return }
     setLoading(true)
     try {
-      await createVendor({ name, agencyCode, phone })
-      toast.success('Vendor created!')
+      if (initial) {
+        await updateVendor(initial.id, { name, agencyCode, phone })
+        toast.success('Vendor updated!')
+      } else {
+        await createVendor({ name, agencyCode, phone })
+        toast.success('Vendor created!')
+      }
       onDone?.()
-    } catch { toast.error('Failed to create vendor') }
+    } catch { toast.error(initial ? 'Failed to update vendor' : 'Failed to create vendor') }
     finally { setLoading(false) }
   }
 
@@ -27,7 +32,7 @@ export default function CreateVendor({ onDone, onBack }: { onDone?: () => void; 
         <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
           <ArrowLeft size={18} className="text-slate-500" />
         </button>
-        <h1 className="text-2xl font-bold text-slate-800">Add Vendor</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{initial ? 'Edit Vendor' : 'Add Vendor'}</h1>
       </div>
       <form onSubmit={submit} className="card space-y-4">
         <div>
@@ -45,7 +50,7 @@ export default function CreateVendor({ onDone, onBack }: { onDone?: () => void; 
         <div className="flex gap-3 pt-2">
           <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
             {loading && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-            {loading ? 'Saving...' : 'Save Vendor'}
+            {loading ? 'Saving...' : (initial ? 'Save Changes' : 'Save Vendor')}
           </button>
           <button type="button" onClick={onBack} className="btn-secondary">Cancel</button>
         </div>
