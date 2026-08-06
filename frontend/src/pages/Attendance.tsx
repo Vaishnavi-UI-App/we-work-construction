@@ -2,10 +2,16 @@ import React from 'react'
 import { checkIn, checkOut, fetchMyAttendance, fetchTodayAttendance, fetchAllAttendance } from '../api'
 import {
   CalendarCheck, Clock, MapPin, CheckCircle, LogIn, LogOut, AlertCircle,
-  Users, XCircle, Filter, UserCog,
+  Users, XCircle, Filter, UserCog, Camera,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import LocationLabel from '../components/LocationLabel'
+import CameraCaptureModal from '../components/CameraCaptureModal'
+
+// Derives the uploads host from the same API base axios uses (api.ts), so photo
+// URLs resolve correctly both in dev (backend on :4001) and in production (same
+// origin, proxied by nginx) instead of hardcoding localhost.
+const UPLOADS_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4001/api').replace(/\/api\/?$/, '')
 
 function getLocation(): Promise<{ lat: number; lng: number }> {
   return new Promise((resolve, reject) => {
@@ -38,6 +44,7 @@ function MyAttendanceTab() {
   const [loading, setLoading] = React.useState(true)
   const [busy, setBusy]       = React.useState(false)
   const [locMsg, setLocMsg]   = React.useState('')
+  const [showCamera, setShowCamera] = React.useState<'checkin' | 'checkout' | null>(null)
 
   async function load() {
     const [t, h] = await Promise.all([fetchTodayAttendance(), fetchMyAttendance()])
@@ -45,12 +52,15 @@ function MyAttendanceTab() {
   }
   React.useEffect(() => { load() }, [])
 
-  async function handleCheckIn() {
+  async function handleCheckIn(photo: Blob) {
     setBusy(true); setLocMsg('Fetching your location…')
     try {
       const loc = await getLocation()
       setLocMsg('')
-      await checkIn({ lat: loc.lat, lng: loc.lng })
+      const fd = new FormData()
+      fd.append('lat', String(loc.lat)); fd.append('lng', String(loc.lng))
+      fd.append('photo', photo, 'checkin.jpg')
+      await checkIn(fd)
       toast.success('Checked in successfully!')
       load()
     } catch (e: any) {
@@ -59,12 +69,15 @@ function MyAttendanceTab() {
     } finally { setBusy(false) }
   }
 
-  async function handleCheckOut() {
+  async function handleCheckOut(photo: Blob) {
     setBusy(true); setLocMsg('Fetching your location…')
     try {
       const loc = await getLocation()
       setLocMsg('')
-      await checkOut({ lat: loc.lat, lng: loc.lng })
+      const fd = new FormData()
+      fd.append('lat', String(loc.lat)); fd.append('lng', String(loc.lng))
+      fd.append('photo', photo, 'checkout.jpg')
+      await checkOut(fd)
       toast.success('Checked out successfully!')
       load()
     } catch (e: any) {
@@ -99,25 +112,37 @@ function MyAttendanceTab() {
         {/* Times */}
         {checkedIn && (
           <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="bg-white rounded-xl p-3 border border-blue-100">
-              <div className="flex items-center gap-2 text-blue-600 mb-1">
-                <LogIn size={14} /><span className="text-xs font-semibold uppercase tracking-wide">Check In</span>
-              </div>
-              <p className="font-bold text-slate-800">{fmt12(today.checkIn)}</p>
-              {today.checkInLat && (
-                <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
-                  <MapPin size={10} className="shrink-0" />
-                  <LocationLabel lat={today.checkInLat} lng={today.checkInLng} className="hover:underline hover:text-slate-600" />
-                </p>
+            <div className="bg-white rounded-xl p-3 border border-blue-100 flex gap-3">
+              {today.checkInPhotoUrl && (
+                <img src={`${UPLOADS_BASE}${today.checkInPhotoUrl}`} alt="Check-in photo"
+                  className="w-14 h-14 rounded-lg object-cover shrink-0 border border-blue-100" />
               )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-blue-600 mb-1">
+                  <LogIn size={14} /><span className="text-xs font-semibold uppercase tracking-wide">Check In</span>
+                </div>
+                <p className="font-bold text-slate-800">{fmt12(today.checkIn)}</p>
+                {today.checkInLat && (
+                  <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+                    <MapPin size={10} className="shrink-0" />
+                    <LocationLabel lat={today.checkInLat} lng={today.checkInLng} className="hover:underline hover:text-slate-600" />
+                  </p>
+                )}
+              </div>
             </div>
             {checkedOut ? (
-              <div className="bg-white rounded-xl p-3 border border-emerald-100">
-                <div className="flex items-center gap-2 text-emerald-600 mb-1">
-                  <LogOut size={14} /><span className="text-xs font-semibold uppercase tracking-wide">Check Out</span>
+              <div className="bg-white rounded-xl p-3 border border-emerald-100 flex gap-3">
+                {today.checkOutPhotoUrl && (
+                  <img src={`${UPLOADS_BASE}${today.checkOutPhotoUrl}`} alt="Check-out photo"
+                    className="w-14 h-14 rounded-lg object-cover shrink-0 border border-emerald-100" />
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-emerald-600 mb-1">
+                    <LogOut size={14} /><span className="text-xs font-semibold uppercase tracking-wide">Check Out</span>
+                  </div>
+                  <p className="font-bold text-slate-800">{fmt12(today.checkOut)}</p>
+                  <p className="text-xs text-emerald-600 mt-1 font-medium">{today.hoursWorked}h worked</p>
                 </div>
-                <p className="font-bold text-slate-800">{fmt12(today.checkOut)}</p>
-                <p className="text-xs text-emerald-600 mt-1 font-medium">{today.hoursWorked}h worked</p>
               </div>
             ) : (
               <div className="bg-slate-50 rounded-xl p-3 border border-dashed border-slate-200 flex items-center justify-center">
@@ -136,17 +161,17 @@ function MyAttendanceTab() {
 
         {/* Action buttons */}
         {!checkedIn && (
-          <button onClick={handleCheckIn} disabled={busy}
+          <button onClick={() => setShowCamera('checkin')} disabled={busy}
             className="btn-primary w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700">
-            {busy ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <LogIn size={18} />}
-            Check In with Location
+            {busy ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Camera size={18} />}
+            Check In with Photo
           </button>
         )}
         {checkedIn && !checkedOut && (
-          <button onClick={handleCheckOut} disabled={busy}
+          <button onClick={() => setShowCamera('checkout')} disabled={busy}
             className="btn-primary w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700">
-            {busy ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <LogOut size={18} />}
-            Check Out with Location
+            {busy ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Camera size={18} />}
+            Check Out with Photo
           </button>
         )}
         {checkedOut && (
@@ -174,7 +199,7 @@ function MyAttendanceTab() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50">
-                  {['Date', 'Check In', 'Check Out', 'Hours', 'Location'].map(h => <th key={h} className="table-head">{h}</th>)}
+                  {['Date', 'Check In', 'Check Out', 'Hours', 'Location', 'Photos'].map(h => <th key={h} className="table-head">{h}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -192,14 +217,42 @@ function MyAttendanceTab() {
                           </span>
                         : '—'}
                     </td>
+                    <td className="table-cell">
+                      <div className="flex items-center gap-1.5">
+                        {r.checkInPhotoUrl && (
+                          <a href={`${UPLOADS_BASE}${r.checkInPhotoUrl}`} target="_blank" rel="noreferrer">
+                            <img src={`${UPLOADS_BASE}${r.checkInPhotoUrl}`} alt="Check-in" className="w-9 h-9 rounded-lg object-cover border border-blue-100" />
+                          </a>
+                        )}
+                        {r.checkOutPhotoUrl && (
+                          <a href={`${UPLOADS_BASE}${r.checkOutPhotoUrl}`} target="_blank" rel="noreferrer">
+                            <img src={`${UPLOADS_BASE}${r.checkOutPhotoUrl}`} alt="Check-out" className="w-9 h-9 rounded-lg object-cover border border-emerald-100" />
+                          </a>
+                        )}
+                        {!r.checkInPhotoUrl && !r.checkOutPhotoUrl && '—'}
+                      </div>
+                    </td>
                   </tr>
                 ))}
-                {!history.length && <tr><td colSpan={5} className="table-cell text-center text-slate-400 py-10">No attendance records yet</td></tr>}
+                {!history.length && <tr><td colSpan={6} className="table-cell text-center text-slate-400 py-10">No attendance records yet</td></tr>}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {showCamera && (
+        <CameraCaptureModal
+          title={showCamera === 'checkin' ? 'Check-In Photo' : 'Check-Out Photo'}
+          onClose={() => setShowCamera(null)}
+          onConfirm={async (blob) => {
+            const type = showCamera
+            setShowCamera(null)
+            if (type === 'checkin') await handleCheckIn(blob)
+            else await handleCheckOut(blob)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -269,7 +322,7 @@ function AllAttendanceTab() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
-                  {['Employee', 'Role', 'Check In', 'Check Out', 'Hours', 'Check-in Location', 'Check-out Location'].map(h => (
+                  {['Employee', 'Role', 'Check In', 'Check Out', 'Hours', 'Check-in Location', 'Check-out Location', 'Photos'].map(h => (
                     <th key={h} className="table-head">{h}</th>
                   ))}
                 </tr>
@@ -317,10 +370,25 @@ function AllAttendanceTab() {
                           </span>
                         : <span className="text-slate-300">—</span>}
                     </td>
+                    <td className="table-cell">
+                      <div className="flex items-center gap-1.5">
+                        {r.checkInPhotoUrl && (
+                          <a href={`${UPLOADS_BASE}${r.checkInPhotoUrl}`} target="_blank" rel="noreferrer">
+                            <img src={`${UPLOADS_BASE}${r.checkInPhotoUrl}`} alt="Check-in" className="w-9 h-9 rounded-lg object-cover border border-blue-100" />
+                          </a>
+                        )}
+                        {r.checkOutPhotoUrl && (
+                          <a href={`${UPLOADS_BASE}${r.checkOutPhotoUrl}`} target="_blank" rel="noreferrer">
+                            <img src={`${UPLOADS_BASE}${r.checkOutPhotoUrl}`} alt="Check-out" className="w-9 h-9 rounded-lg object-cover border border-emerald-100" />
+                          </a>
+                        )}
+                        {!r.checkInPhotoUrl && !r.checkOutPhotoUrl && <span className="text-slate-300">—</span>}
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {!records.length && (
-                  <tr><td colSpan={7} className="table-cell text-center text-slate-400 py-14">
+                  <tr><td colSpan={8} className="table-cell text-center text-slate-400 py-14">
                     No attendance records for {date}
                   </td></tr>
                 )}

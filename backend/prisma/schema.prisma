@@ -337,19 +337,21 @@ model FundAllocation {
 }
 
 model Attendance {
-  id           Int       @id @default(autoincrement())
-  userId       Int
-  user         User      @relation(fields: [userId], references: [id])
-  date         String
-  checkIn      DateTime?
-  checkOut     DateTime?
-  checkInLat   Float?
-  checkInLng   Float?
-  checkOutLat  Float?
-  checkOutLng  Float?
-  hoursWorked  Float?
-  notes        String?
-  createdAt    DateTime  @default(now())
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  user           User      @relation(fields: [userId], references: [id])
+  date           String
+  checkIn        DateTime?
+  checkOut       DateTime?
+  checkInLat     Float?
+  checkInLng     Float?
+  checkOutLat    Float?
+  checkOutLng    Float?
+  checkInPhotoUrl  String?
+  checkOutPhotoUrl String?
+  hoursWorked    Float?
+  notes          String?
+  createdAt      DateTime  @default(now())
 
   @@unique([userId, date])
 }

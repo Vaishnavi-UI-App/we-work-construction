@@ -74,8 +74,8 @@ export const updateRole  = (id: number, d: any) => api.put(`/roles/${id}`, d).th
 export const deleteRole  = (id: number) => api.delete(`/roles/${id}`).then(r => r.data)
 
 // Attendance
-export const checkIn        = (d: any) => api.post('/attendance/checkin', d).then(r => r.data)
-export const checkOut       = (d: any) => api.post('/attendance/checkout', d).then(r => r.data)
+export const checkIn        = (d: FormData) => api.post('/attendance/checkin', d, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+export const checkOut       = (d: FormData) => api.post('/attendance/checkout', d, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
 export const fetchMyAttendance   = () => api.get('/attendance/my').then(r => r.data)
 export const fetchTodayAttendance = () => api.get('/attendance/today').then(r => r.data)
 export const fetchAllAttendance  = (date?: string) => api.get('/attendance/all', { params: date ? { date } : {} }).then(r => r.data)

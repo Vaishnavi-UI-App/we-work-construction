@@ -1,7 +1,19 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { authMiddleware } from '../utils/auth';
 import { accessMiddleware, requirePermission } from '../utils/access';
+
+const uploadsDir = path.join(__dirname, '../../../uploads/attendance');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/\s/g, '_')}`),
+});
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 function toDateString(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -13,8 +25,11 @@ export default function (prisma: PrismaClient) {
   router.use(accessMiddleware(prisma));
 
   // Check In
-  router.post('/checkin', requirePermission('attendance', 'canAdd'), async (req: any, res) => {
+  router.post('/checkin', requirePermission('attendance', 'canAdd'), upload.single('photo'), async (req: any, res) => {
     const { lat, lng, notes } = req.body;
+    const checkInLat = lat !== undefined ? Number(lat) : undefined;
+    const checkInLng = lng !== undefined ? Number(lng) : undefined;
+    const photoUrl = req.file ? `/uploads/attendance/${req.file.filename}` : undefined;
     const today = toDateString(new Date());
     const userId = req.user.id;
 
@@ -25,23 +40,27 @@ export default function (prisma: PrismaClient) {
       const record = existing
         ? await prisma.attendance.update({
             where: { userId_date: { userId, date: today } },
-            data: { checkIn: new Date(), checkInLat: lat, checkInLng: lng, notes },
+            data: { checkIn: new Date(), checkInLat, checkInLng, checkInPhotoUrl: photoUrl, notes },
             include: { user: { select: { name: true, email: true, role: true } } },
           })
         : await prisma.attendance.create({
-            data: { userId, date: today, checkIn: new Date(), checkInLat: lat, checkInLng: lng, notes },
+            data: { userId, date: today, checkIn: new Date(), checkInLat, checkInLng, checkInPhotoUrl: photoUrl, notes },
             include: { user: { select: { name: true, email: true, role: true } } },
           });
 
       res.json(record);
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: 'Check-in failed' });
     }
   });
 
   // Check Out
-  router.post('/checkout', requirePermission('attendance', 'canAdd'), async (req: any, res) => {
+  router.post('/checkout', requirePermission('attendance', 'canAdd'), upload.single('photo'), async (req: any, res) => {
     const { lat, lng } = req.body;
+    const checkOutLat = lat !== undefined ? Number(lat) : undefined;
+    const checkOutLng = lng !== undefined ? Number(lng) : undefined;
+    const photoUrl = req.file ? `/uploads/attendance/${req.file.filename}` : undefined;
     const today = toDateString(new Date());
     const userId = req.user.id;
 
@@ -55,11 +74,12 @@ export default function (prisma: PrismaClient) {
 
       const record = await prisma.attendance.update({
         where: { userId_date: { userId, date: today } },
-        data: { checkOut: checkOutTime, checkOutLat: lat, checkOutLng: lng, hoursWorked: +hours.toFixed(2) },
+        data: { checkOut: checkOutTime, checkOutLat, checkOutLng, checkOutPhotoUrl: photoUrl, hoursWorked: +hours.toFixed(2) },
         include: { user: { select: { name: true, email: true, role: true } } },
       });
       res.json(record);
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: 'Check-out failed' });
     }
   });
