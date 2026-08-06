@@ -32,12 +32,13 @@ export default function SimpleChallanDocument({ challan }: { challan: any }) {
       fontFamily: 'Arial, Helvetica, sans-serif', border: '1px solid #000', padding: 0,
     }}>
       {/* Letterhead */}
-      <div style={{ borderBottom: '1px solid #000', padding: '12px 16px', background: '#fce8d5' }}>
+      <div style={{ borderBottom: '1px solid #000', padding: '12px 16px', background: '#fce8d5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: 1, color: '#e07b1e', fontFamily: 'Arial, Helvetica, sans-serif' }}>
           {COMPANY.name}
         </div>
         <div style={{ textAlign: 'right', fontSize: 12.5, lineHeight: 1.5 }}>
-          <div>Office :- {COMPANY.address.join(' ')}</div>
+          <div>Office :- {COMPANY.address.slice(0, -1).join(' ')}</div>
+          <div>{COMPANY.address[COMPANY.address.length - 1]}</div>
           <div>Mobile :- {COMPANY.mobile}</div>
           <div>GST No- : {COMPANY.gst}</div>
           <div>Email :- {COMPANY.email}</div>
@@ -92,14 +93,27 @@ export default function SimpleChallanDocument({ challan }: { challan: any }) {
         </tbody>
       </table>
 
-      {/* Footer: checked by / signature */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-        <div style={{ ...cell, height: 90 }}>Checked by</div>
-        <div style={{ ...cell, textAlign: 'right' }}>
-          <div>FOR WE WORK CONSTRUCTIONS,</div>
-          <img src="/weworksign.jpeg" alt="Authorised signatory" style={{ width: 190, height: 'auto', marginTop: 4, marginLeft: 'auto', display: 'block' }} />
-          <div style={{ fontSize: 12 }}>Proprietor</div>
+      {/* Goods received + signature */}
+      <div style={{ display: 'flex', borderTop: '1px solid #000', borderBottom: '1px solid #000' }}>
+        <div style={{ flex: 1, padding: '10px 14px', borderRight: '1px solid #000', fontSize: 13 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Goods Received In Good Condition</div>
+          <div style={{ marginTop: 30 }}>Receiver's Signature: ____________________</div>
         </div>
+        <div style={{ flex: 1, padding: '10px 14px', fontSize: 13, textAlign: 'right' }}>
+          <div>Certified that the particulars given above are true and correct for,</div>
+          <img src="/weworksign.jpeg" alt="Authorised signatory" style={{ width: 230, height: 'auto', marginTop: 5, marginLeft: 'auto', display: 'block' }} />
+        </div>
+      </div>
+
+      {/* Terms */}
+      <div style={{ padding: '10px 14px', fontSize: 12.5 }}>
+        <div style={{ fontWeight: 700, marginBottom: 3 }}>Terms And Conditions</div>
+        <div>Goods once dispatched cannot be taken back unless authorised.</div>
+        <div>This challan is not a tax invoice — no payment is due against it.</div>
+      </div>
+
+      <div style={{ textAlign: 'center', fontStyle: 'italic', fontSize: 12.5, borderTop: '1px solid #000', padding: '6px 0' }}>
+        This is a computer generated delivery challan
       </div>
     </div>
   )
