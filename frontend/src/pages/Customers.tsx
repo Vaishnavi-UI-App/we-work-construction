@@ -1,6 +1,6 @@
 import React from 'react'
 import { fetchCustomers, deleteCustomer } from '../api'
-import { Plus, Trash2, User, Phone, MapPin } from 'lucide-react'
+import { Plus, Trash2, User, Phone, MapPin, Mail, Globe, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CreateCustomer from './CreateCustomer'
 
@@ -59,7 +59,15 @@ export default function Customers() {
               </div>
               <div className="mt-4 space-y-1.5">
                 {c.phone && <p className="text-sm text-slate-500 flex items-center gap-2"><Phone size={13} />{c.phone}</p>}
+                {c.email && <p className="text-sm text-slate-500 flex items-center gap-2"><Mail size={13} />{c.email}</p>}
+                {c.website && <p className="text-sm text-slate-500 flex items-center gap-2"><Globe size={13} />{c.website}</p>}
                 {c.address && <p className="text-sm text-slate-500 flex items-center gap-2"><MapPin size={13} />{c.address}</p>}
+                {c.gst && (
+                  <p className="text-sm text-slate-500 flex items-center gap-2">
+                    <ShieldCheck size={13} />{c.gst}{c.stateCode ? ` (State Code: ${c.stateCode})` : ''}
+                  </p>
+                )}
+                {c.state && <p className="text-xs text-slate-400 pl-5">{c.state}</p>}
               </div>
               <div className="mt-4 pt-3 border-t border-slate-50 text-xs text-slate-400">
                 Added {new Date(c.createdAt).toLocaleDateString('en-IN')}

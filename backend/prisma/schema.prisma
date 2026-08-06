@@ -248,6 +248,11 @@ model Customer {
   name      String
   phone     String?
   address   String?
+  gst       String?
+  email     String?
+  website   String?
+  state     String?
+  stateCode String?
   createdAt DateTime  @default(now())
   invoices  Invoice[] @relation("CustomerInvoices")
 }

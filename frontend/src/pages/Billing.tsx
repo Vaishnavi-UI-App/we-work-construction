@@ -6,7 +6,7 @@ import jsPDF from 'jspdf'
 import { Plus, Trash2, Printer, FileText, X, ArrowLeft, RefreshCw, Eye, Pencil } from 'lucide-react'
 import { FaWhatsapp } from 'react-icons/fa'
 import { SiGmail } from 'react-icons/si'
-import { fetchBills, fetchNextBillNo, fetchHsnCodes, createBill, updateBill, deleteBill } from '../api'
+import { fetchBills, fetchNextBillNo, fetchHsnCodes, fetchCustomers, createBill, updateBill, deleteBill } from '../api'
 import InvoiceDocument from '../components/InvoiceDocument'
 
 const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS', 'CUM']
@@ -37,6 +37,7 @@ export default function Billing() {
   const [view, setView] = React.useState<'list' | 'create'>('list')
   const [bills, setBills] = React.useState<any[]>([])
   const [hsn, setHsn] = React.useState<any[]>([])
+  const [customers, setCustomers] = React.useState<any[]>([])
   const [preview, setPreview] = React.useState<any | null>(null)
   const [captureBill, setCaptureBill] = React.useState<any | null>(null)
   const [sharingId, setSharingId] = React.useState<number | null>(null)
@@ -76,7 +77,10 @@ export default function Billing() {
   async function loadList() {
     try { setBills(await fetchBills()) } catch { toast.error('Failed to load invoices') }
   }
-  React.useEffect(() => { loadList() }, [])
+  React.useEffect(() => {
+    loadList()
+    fetchCustomers().then(setCustomers).catch(() => {})
+  }, [])
 
   async function startCreate() {
     setEditingId(null)
@@ -129,6 +133,19 @@ export default function Billing() {
 
   function updateItem(idx: number, patch: Partial<Item>) {
     setItems(prev => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+  }
+
+  // When a saved customer's name is chosen, auto-fill their address/GST/mobile/email/state
+  function onBillToNameChange(value: string) {
+    setBillToName(value)
+    const match = customers.find((c: any) => c.name === value)
+    if (match) {
+      setBillToAddress(match.address || '')
+      setBillToGst(match.gst || '')
+      setBillToMobile(match.phone || '')
+      setBillToEmail(match.email || '')
+      setBillToState(match.state || 'Maharashtra')
+    }
   }
 
   // When a saved product description is chosen, auto-fill HSN / unit / price
@@ -319,7 +336,11 @@ export default function Billing() {
           </div>
           <div>
             <label className="label">Bill To Name *</label>
-            <input className="input" value={billToName} onChange={e => setBillToName(e.target.value)} placeholder="M/s. Company Name" />
+            <input className="input" list="customer-names" value={billToName}
+              onChange={e => onBillToNameChange(e.target.value)} placeholder="M/s. Company Name" />
+            <datalist id="customer-names">
+              {customers.map((c: any) => <option key={c.id} value={c.name} />)}
+            </datalist>
           </div>
           <div>
             <label className="label">Bill To GST No</label>
