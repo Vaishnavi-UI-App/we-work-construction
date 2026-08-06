@@ -5,13 +5,6 @@ import { COMPANY } from './InvoiceDocument'
 // the look of the company's pre-printed paper challan pad.
 const MIN_ROWS = 10
 
-function CompanyLogo() {
-  return (
-    <img src="/logo.png" alt="We Work Constructions logo" width={56} height={56}
-      style={{ objectFit: 'contain', flexShrink: 0 }} />
-  )
-}
-
 const cell: React.CSSProperties = { border: '1px solid #000', padding: '5px 8px', fontSize: 13, verticalAlign: 'top' }
 const label: React.CSSProperties = { fontSize: 12, color: '#333' }
 const value: React.CSSProperties = { fontWeight: 700, fontSize: 13.5 }
@@ -39,18 +32,15 @@ export default function SimpleChallanDocument({ challan }: { challan: any }) {
       fontFamily: 'Arial, Helvetica, sans-serif', border: '1px solid #000', padding: 0,
     }}>
       {/* Letterhead */}
-      <div style={{ borderBottom: '1px solid #000', padding: '12px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <CompanyLogo />
-            <div style={{ fontFamily: "'Rye', cursive", fontSize: 30, lineHeight: 1.1, color: '#000' }}>{COMPANY.name}</div>
-          </div>
-          <div style={{ textAlign: 'right', fontSize: 12.5, lineHeight: 1.5 }}>
-            <div>{COMPANY.address.join(' ')}</div>
-            <div>Mobile :- {COMPANY.mobile}</div>
-            <div>GST No- : {COMPANY.gst}</div>
-            <div>Email :- {COMPANY.email}</div>
-          </div>
+      <div style={{ borderBottom: '1px solid #000', padding: '12px 16px', background: '#fce8d5' }}>
+        <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: 1, color: '#e07b1e', fontFamily: 'Arial, Helvetica, sans-serif' }}>
+          {COMPANY.name}
+        </div>
+        <div style={{ textAlign: 'right', fontSize: 12.5, lineHeight: 1.5 }}>
+          <div>Office :- {COMPANY.address.join(' ')}</div>
+          <div>Mobile :- {COMPANY.mobile}</div>
+          <div>GST No- : {COMPANY.gst}</div>
+          <div>Email :- {COMPANY.email}</div>
         </div>
       </div>
 
