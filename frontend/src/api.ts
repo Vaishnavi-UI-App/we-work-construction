@@ -53,6 +53,8 @@ export const deleteVendor  = (id: number) => api.delete(`/vendors/${id}`).then(r
 export const fetchWallets      = () => api.get('/wallet').then(r => r.data)
 export const addFund           = (d: any) => api.post('/wallet/fund', d).then(r => r.data)
 export const addTrackedExpense = (d: FormData) => api.post('/wallet/expense', d, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+export const updateTrackedExpense = (id: number, d: FormData) => api.put(`/wallet/expense/${id}`, d, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+export const deleteTrackedExpense = (id: number) => api.delete(`/wallet/expense/${id}`).then(r => r.data)
 export const fetchSiteHistory  = (siteId: number) => api.get(`/wallet/history/${siteId}`).then(r => r.data)
 export const fetchOrderedByPeople = () => api.get('/wallet/ordered-by').then(r => r.data)
 export const addOrderedByPerson   = (name: string) => api.post('/wallet/ordered-by', { name }).then(r => r.data)

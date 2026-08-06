@@ -1,6 +1,10 @@
 import React from 'react'
-import { fetchSiteHistory } from '../api'
-import { X, ArrowDownCircle, ArrowUpCircle, CheckCircle, Image, User } from 'lucide-react'
+import toast from 'react-hot-toast'
+import {
+  fetchSiteHistory, fetchExpenseCategories, fetchOrderedByPeople,
+  updateTrackedExpense, deleteTrackedExpense,
+} from '../api'
+import { X, ArrowDownCircle, ArrowUpCircle, CheckCircle, Image, User, Pencil, Trash2 } from 'lucide-react'
 
 const FUND_TYPE_STYLE: Record<string, string> = {
   COMPANY:  'bg-blue-100 text-blue-700',
@@ -12,17 +16,129 @@ function fmt(n: number) {
   return `₹${Number(n || 0).toLocaleString('en-IN')}`
 }
 
-// Full fund + expense timeline for one site — used from both the Expense
-// Tracker's per-site "History" button and the Dashboard's clickable site cards.
-export default function SiteHistoryDrawer({ site, onClose }: { site: any; onClose: () => void }) {
-  const [data, setData] = React.useState<any>(null)
-  const [loading, setLoading] = React.useState(true)
+const todayStr = () => new Date().toISOString().slice(0, 10)
+
+// ── Edit Expense Modal ──────────────────────────────────────────────────────────
+function EditExpenseModal({ tx, onClose, onSaved }: { tx: any; onClose: () => void; onSaved: () => void }) {
+  const [category, setCategory] = React.useState(tx.category || '')
+  const [date,      setDate]    = React.useState(tx.date ? new Date(tx.date).toISOString().slice(0, 10) : todayStr())
+  const [amount,   setAmount]   = React.useState(String(tx.amount ?? ''))
+  const [notes,    setNotes]    = React.useState(tx.notes || '')
+  const [orderedBy, setOrderedBy] = React.useState(tx.orderedBy || '')
+  const [receipt,  setReceipt]  = React.useState<File | null>(null)
+  const [categories, setCategories] = React.useState<any[]>([])
+  const [people, setPeople] = React.useState<any[]>([])
+  const [saving, setSaving] = React.useState(false)
 
   React.useEffect(() => {
+    fetchExpenseCategories().then(setCategories).catch(() => {})
+    fetchOrderedByPeople().then(setPeople).catch(() => {})
+  }, [])
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!amount || Number(amount) <= 0) { toast.error('Enter a valid amount'); return }
+    setSaving(true)
+    try {
+      const fd = new FormData()
+      fd.append('category', category)
+      fd.append('date', date)
+      fd.append('amount', amount)
+      fd.append('notes', notes)
+      if (orderedBy) fd.append('orderedBy', orderedBy)
+      if (receipt) fd.append('receipt', receipt)
+      await updateTrackedExpense(tx.id, fd)
+      toast.success('Expense updated')
+      onSaved()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to update expense')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h2 className="font-bold text-slate-800 text-base">Edit Expense</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        <form onSubmit={submit} className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Category</label>
+              <select className="input" value={category} onChange={e => setCategory(e.target.value)}>
+                {!categories.some((c: any) => c.name === category) && category && <option value={category}>{category}</option>}
+                {categories.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Date</label>
+              <input className="input" type="date" value={date} max={todayStr()} onChange={e => setDate(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className="label">Amount (₹)</label>
+            <input className="input" type="number" min={1} step={0.01} value={amount} onChange={e => setAmount(e.target.value)} required />
+          </div>
+          <div>
+            <label className="label">Notes</label>
+            <input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Expense description (optional)" />
+          </div>
+          <div>
+            <label className="label">Ordered By</label>
+            <select className="input" value={orderedBy} onChange={e => setOrderedBy(e.target.value)}>
+              <option value="">Select person (optional)</option>
+              {!people.some((p: any) => p.name === orderedBy) && orderedBy && <option value={orderedBy}>{orderedBy}</option>}
+              {people.map((p: any) => <option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Replace Receipt (optional)</label>
+            <label className="flex items-center gap-3 border-2 border-dashed rounded-xl px-4 py-3 cursor-pointer border-slate-200 hover:border-blue-300 hover:bg-slate-50">
+              <span className="text-sm text-slate-500 truncate">{receipt ? receipt.name : (tx.receiptUrl ? 'Keep existing receipt' : 'Attach a receipt')}</span>
+              <input type="file" accept="image/*,application/pdf" className="hidden"
+                onChange={e => setReceipt(e.target.files?.[0] || null)} />
+            </label>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
+              {saving && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Full fund + expense timeline for one site — used from both the Expense
+// Tracker's per-site "History" button and the Dashboard's clickable site cards.
+export default function SiteHistoryDrawer({ site, onClose, onChanged }: { site: any; onClose: () => void; onChanged?: () => void }) {
+  const [data, setData] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [editingTx, setEditingTx] = React.useState<any>(null)
+
+  function load() {
+    setLoading(true)
     fetchSiteHistory(site.id)
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [site.id])
+  }
+  React.useEffect(load, [site.id])
+
+  async function remove(tx: any) {
+    if (!confirm('Delete this expense? This reverses its effect on the site wallet.')) return
+    try {
+      await deleteTrackedExpense(tx.id)
+      toast.success('Expense deleted')
+      load()
+      onChanged?.()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to delete expense')
+    }
+  }
 
   const w = data?.wallet || {}
 
@@ -101,11 +217,21 @@ export default function SiteHistoryDrawer({ site, onClose }: { site: any; onClos
                       </p>
                     )}
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
                     <p className={`font-bold text-sm ${tx.txType === 'FUND' ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {tx.txType === 'FUND' ? '+' : '-'}{fmt(tx.amount)}
                     </p>
                     <p className="text-xs text-slate-400">{new Date(tx.date).toLocaleDateString('en-IN')}</p>
+                    {tx.txType === 'EXPENSE' && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <button onClick={() => setEditingTx(tx)} title="Edit expense" className="text-slate-400 hover:text-blue-600 transition-colors">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => remove(tx)} title="Delete expense" className="text-slate-400 hover:text-red-500 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -117,6 +243,14 @@ export default function SiteHistoryDrawer({ site, onClose }: { site: any; onClos
           )}
         </div>
       </div>
+
+      {editingTx && (
+        <EditExpenseModal
+          tx={editingTx}
+          onClose={() => setEditingTx(null)}
+          onSaved={() => { setEditingTx(null); load(); onChanged?.() }}
+        />
+      )}
     </div>
   )
 }

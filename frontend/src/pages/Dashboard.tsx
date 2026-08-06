@@ -179,11 +179,12 @@ function AdminDashboard() {
   const [historySite, setHistorySite] = React.useState<any>(null)
   const isDark = document.documentElement.classList.contains('dark')
 
-  React.useEffect(() => {
+  function load() {
     Promise.all([fetchReports(), fetchWallets(), fetchExpenses()])
       .then(([r, w, e]) => { setReport(r); setWallets(w); setExpenses(e); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }
+  React.useEffect(load, [])
 
   if (loading) return <DashboardSkeleton />
 
@@ -404,7 +405,7 @@ function AdminDashboard() {
       {/* Activity feed */}
       <ActivityFeed expenses={expenses} />
 
-      {historySite && <SiteHistoryDrawer site={historySite} onClose={() => setHistorySite(null)} />}
+      {historySite && <SiteHistoryDrawer site={historySite} onClose={() => setHistorySite(null)} onChanged={load} />}
     </div>
   )
 }
@@ -416,11 +417,12 @@ function ManagerDashboard({ user }: { user: any }) {
   const [loading,  setLoading]  = React.useState(true)
   const [historySite, setHistorySite] = React.useState<any>(null)
 
-  React.useEffect(() => {
+  function load() {
     Promise.all([fetchWallets(), fetchExpenses()])
       .then(([w, e]) => { setWallets(w); setExpenses(e); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }
+  React.useEffect(load, [])
 
   if (loading) return <DashboardSkeleton />
 
@@ -485,7 +487,7 @@ function ManagerDashboard({ user }: { user: any }) {
       {/* Activity */}
       <ActivityFeed expenses={expenses} />
 
-      {historySite && <SiteHistoryDrawer site={historySite} onClose={() => setHistorySite(null)} />}
+      {historySite && <SiteHistoryDrawer site={historySite} onClose={() => setHistorySite(null)} onChanged={load} />}
     </div>
   )
 }

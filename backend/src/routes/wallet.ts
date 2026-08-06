@@ -242,6 +242,104 @@ export default function (prisma: PrismaClient) {
     }
   });
 
+  // Edit an expense — reverses its old effect on the wallet, then re-derives the
+  // company/personal split fresh against the now-reversed balance (same rule as
+  // creating one), so editing the amount can't leave the wallet's running totals
+  // out of sync with what's actually been paid from each pot.
+  router.put('/expense/:id', requirePermission('tracker', 'canEdit'), upload.single('receipt'), async (req: any, res) => {
+    const id = Number(req.params.id);
+    const { category, amount, notes, orderedBy, date } = req.body;
+    const total = Number(amount);
+    if (!category || !total || total <= 0) {
+      return res.status(400).json({ error: 'category and amount required' });
+    }
+    try {
+      const existing = await prisma.expense.findUnique({ where: { id } });
+      if (!existing) return res.status(404).json({ error: 'Expense not found' });
+      if (!req.access.allSites && existing.siteId !== req.access.siteId) {
+        return res.status(403).json({ error: 'You can only edit expenses for your assigned branch' });
+      }
+
+      const receiptUrl = req.file ? `/uploads/receipts/${req.file.filename}` : existing.receiptUrl;
+
+      const expense = await prisma.$transaction(async (tx) => {
+        // Undo the old split's effect on the wallet
+        await tx.siteWallet.update({
+          where: { siteId: existing.siteId },
+          data: {
+            companyBalance: { increment: existing.companyPaid },
+            totalCompanySpent: { decrement: existing.companyPaid },
+            totalPersonalSpent: { decrement: existing.personalPaid },
+          },
+        });
+
+        // Re-derive the split against the now-reversed balance
+        const wallet = await tx.siteWallet.findUniqueOrThrow({ where: { siteId: existing.siteId } });
+        const companyPaid = Math.min(wallet.companyBalance, total);
+        const personalPaid = +(total - companyPaid).toFixed(2);
+        let fundType = 'COMPANY';
+        if (companyPaid === 0) fundType = 'PERSONAL';
+        else if (personalPaid > 0) fundType = 'SPLIT';
+
+        await tx.siteWallet.update({
+          where: { siteId: existing.siteId },
+          data: {
+            companyBalance: { decrement: companyPaid },
+            totalCompanySpent: { increment: companyPaid },
+            totalPersonalSpent: { increment: personalPaid },
+          },
+        });
+
+        return tx.expense.update({
+          where: { id },
+          data: {
+            category, amount: total, companyPaid, personalPaid, fundType, notes,
+            orderedBy: orderedBy || undefined,
+            date: date ? new Date(date) : existing.date,
+            receiptUrl,
+          },
+          include: { site: true, manager: { select: { id: true, name: true, email: true } } },
+        });
+      });
+
+      const updatedWallet = await prisma.siteWallet.findUnique({ where: { siteId: existing.siteId } });
+      res.json({ expense, wallet: updatedWallet });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to update expense' });
+    }
+  });
+
+  // Delete an expense — reverses its effect on the wallet's running totals first.
+  router.delete('/expense/:id', requirePermission('tracker', 'canDelete'), async (req: any, res) => {
+    const id = Number(req.params.id);
+    try {
+      const existing = await prisma.expense.findUnique({ where: { id } });
+      if (!existing) return res.status(404).json({ error: 'Expense not found' });
+      if (!req.access.allSites && existing.siteId !== req.access.siteId) {
+        return res.status(403).json({ error: 'You can only delete expenses for your assigned branch' });
+      }
+
+      await prisma.$transaction([
+        prisma.siteWallet.update({
+          where: { siteId: existing.siteId },
+          data: {
+            companyBalance: { increment: existing.companyPaid },
+            totalCompanySpent: { decrement: existing.companyPaid },
+            totalPersonalSpent: { decrement: existing.personalPaid },
+          },
+        }),
+        prisma.expense.delete({ where: { id } }),
+      ]);
+
+      const updatedWallet = await prisma.siteWallet.findUnique({ where: { siteId: existing.siteId } });
+      res.json({ ok: true, wallet: updatedWallet });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to delete expense' });
+    }
+  });
+
   // Full transaction history for a site
   router.get('/history/:siteId', requirePermission('tracker', 'canView'), async (req: any, res) => {
     const siteId = Number(req.params.siteId);

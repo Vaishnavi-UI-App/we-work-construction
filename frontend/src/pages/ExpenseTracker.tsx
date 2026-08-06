@@ -606,7 +606,7 @@ export default function ExpenseTracker() {
       {showSite    && <AddSiteModal                  onClose={() => setShowSite(false)}    onDone={() => { setShowSite(false);    load() }} />}
       {showFund    && <AddFundModal    sites={sites} onClose={() => setShowFund(false)}    onDone={() => { setShowFund(false);    load() }} />}
       {showExpense && <AddExpenseModal sites={sites} onClose={() => setShowExpense(false)} onDone={() => { setShowExpense(false); load() }} />}
-      {historySite && <SiteHistoryDrawer site={historySite} onClose={() => setHistorySite(null)} />}
+      {historySite && <SiteHistoryDrawer site={historySite} onClose={() => setHistorySite(null)} onChanged={load} />}
     </div>
   )
 }
