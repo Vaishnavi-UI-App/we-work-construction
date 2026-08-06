@@ -4,9 +4,7 @@ const path = require('path');
 const tar  = require('tar');
 const os   = require('os');
 
-const HOST     = '72.61.244.31';
-const USER     = 'root';
-const PASSWORD = 'Rushika@2726';
+const { HOST, USER, PASSWORD } = require('./deploy.config.local');
 const REMOTE   = '/opt/wework';
 const BASE     = __dirname;
 

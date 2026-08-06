@@ -6,6 +6,7 @@ node_modules/
 .env
 **/.env
 *.local
+deploy.config.local.js
 
 # Build output
 dist/

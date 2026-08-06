@@ -1,8 +1,6 @@
 const { Client } = require('ssh2');
 
-const HOST     = '72.61.244.31';
-const USER     = 'root';
-const PASSWORD = 'Rushika@2726';
+const { HOST, USER, PASSWORD } = require('./deploy.config.local');
 
 function log(msg) { process.stdout.write(msg + '\n'); }
 

@@ -3,9 +3,7 @@ const fs  = require('fs');
 const tar = require('tar');
 const os  = require('os');
 
-const HOST     = '72.61.244.31';
-const USER     = 'root';
-const PASSWORD = 'Rushika@2726';
+const { HOST, USER, PASSWORD } = require('./deploy.config.local');
 const REMOTE   = '/opt/wework';
 const SKIP     = new Set(['node_modules', '.git', 'dist', 'build', '__pycache__']);
 
