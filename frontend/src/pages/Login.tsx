@@ -14,6 +14,7 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
   const [forgotEmail, setForgotEmail] = React.useState('')
   const [forgotSending, setForgotSending] = React.useState(false)
   const [forgotSent, setForgotSent] = React.useState(false)
+  const [forgotLink, setForgotLink] = React.useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,7 +36,8 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
     e.preventDefault()
     setForgotSending(true)
     try {
-      await api.post('/auth/forgot-password', { email: forgotEmail })
+      const r = await api.post('/auth/forgot-password', { email: forgotEmail })
+      setForgotLink(r.data?.resetLink || null)
       setForgotSent(true)
     } catch {
       toast.error('Something went wrong — please try again')
@@ -94,7 +96,7 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
                   <label className="block text-xs font-semibold text-sky-300/80 uppercase tracking-wider">
                     Password
                   </label>
-                  <button type="button" onClick={() => { setShowForgot(true); setForgotSent(false); setForgotEmail(email) }}
+                  <button type="button" onClick={() => { setShowForgot(true); setForgotSent(false); setForgotLink(null); setForgotEmail(email) }}
                     className="text-xs font-medium text-sky-300/80 hover:text-sky-200 transition">
                     Forgot Password?
                   </button>
@@ -118,8 +120,29 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
             </form>
           ) : forgotSent ? (
             <div className="text-center py-2">
-              <p className="text-white font-semibold mb-1">Check your email</p>
-              <p className="text-slate-400 text-sm mb-6">If an account exists for {forgotEmail}, a reset link is on its way.</p>
+              {forgotLink ? (
+                <>
+                  <p className="text-white font-semibold mb-1">Reset link ready</p>
+                  <p className="text-slate-400 text-sm mb-3">Email delivery isn't set up yet, so here's your link directly:</p>
+                  <div className="flex items-center gap-2 mb-6">
+                    <input readOnly value={forgotLink}
+                      className="flex-1 rounded-xl px-3 py-2.5 text-xs text-slate-300 truncate"
+                      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+                      onFocus={e => e.currentTarget.select()} />
+                    <button type="button"
+                      onClick={() => { navigator.clipboard.writeText(forgotLink); toast.success('Link copied') }}
+                      className="shrink-0 px-3 py-2.5 rounded-xl text-xs font-semibold text-white"
+                      style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.16)' }}>
+                      Copy
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-white font-semibold mb-1">Check your email</p>
+                  <p className="text-slate-400 text-sm mb-6">If an account exists for {forgotEmail}, a reset link is on its way.</p>
+                </>
+              )}
               <button onClick={() => setShowForgot(false)} className="w-full py-3 rounded-xl font-bold text-sm text-white"
                 style={{ background: 'linear-gradient(135deg, #2563eb, #0ea5e9)' }}>
                 Back to Login

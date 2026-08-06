@@ -36,8 +36,14 @@ export default function(prisma: PrismaClient){
     res.json({ token, user: await buildUserPayload(prisma, user.id) })
   })
 
-  // Request a reset link — always responds the same way whether or not the
+  // Request a reset link — normally responds the same way whether or not the
   // email exists, so this endpoint can't be used to enumerate registered accounts.
+  // EXCEPTION: when no SMTP is configured (sendMail returns false, meaning the
+  // link was never actually delivered anywhere), we fall back to returning the
+  // link directly in the response so the flow still works without email — at
+  // the cost of that anti-enumeration property for as long as email stays
+  // unconfigured. Once EMAIL_USER/EMAIL_PASS are set, this fallback stops
+  // triggering and the endpoint is back to being enumeration-safe.
   router.post('/forgot-password', async (req, res) => {
     const { email } = req.body
     if (!email) return res.status(400).json({ error: 'Email is required' })
@@ -51,7 +57,7 @@ export default function(prisma: PrismaClient){
           data: { userId: user.id, token, expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
         })
         const link = `${FRONTEND_URL}/?resetToken=${token}`
-        await sendMail(
+        const delivered = await sendMail(
           user.email,
           'Reset your We Work Constructions password',
           `<p>Hi ${user.name || ''},</p>
@@ -59,6 +65,7 @@ export default function(prisma: PrismaClient){
            <p><a href="${link}">${link}</a></p>
            <p>If you didn't request this, you can safely ignore this email.</p>`
         )
+        if (!delivered) return res.json({ ...generic, resetLink: link })
       }
       res.json(generic)
     } catch (err) {

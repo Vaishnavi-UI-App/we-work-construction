@@ -11,11 +11,15 @@ const transporter = EMAIL_USER && EMAIL_PASS
   ? nodemailer.createTransport({ service: 'gmail', auth: { user: EMAIL_USER, pass: EMAIL_PASS } })
   : null
 
-export async function sendMail(to: string, subject: string, html: string) {
+// Returns whether the mail was actually handed to an SMTP transporter — callers
+// that need a fallback when email isn't configured (e.g. surfacing a password
+// reset link directly in the API response) branch on this.
+export async function sendMail(to: string, subject: string, html: string): Promise<boolean> {
   if (!transporter) {
     console.warn('[mailer] EMAIL_USER/EMAIL_PASS not set — email not sent. Would have sent:')
     console.warn(`  To: ${to}\n  Subject: ${subject}\n  ${html.replace(/<[^>]+>/g, ' ')}`)
-    return
+    return false
   }
   await transporter.sendMail({ from: `"We Work Constructions" <${EMAIL_USER}>`, to, subject, html })
+  return true
 }
