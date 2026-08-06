@@ -15,8 +15,8 @@ import SimpleChallanDocument from '../components/SimpleChallanDocument'
 
 type ChallanType = 'simple' | 'tax'
 
-const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS']
-const SIMPLE_UNITS = ["NO'S", 'NOS', 'EA', 'PCS', 'SET', 'MTR', 'LTR', 'KG', 'BOX', 'ROLL', 'PKT', 'BAG']
+const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS', 'SUM']
+const SIMPLE_UNITS = ["NO'S", 'NOS', 'EA', 'PCS', 'SET', 'MTR', 'LTR', 'KG', 'BOX', 'ROLL', 'PKT', 'BAG', 'SUM']
 const PURPOSES = ['Delivery', 'Job Work', 'Sales Return', 'Sample', 'Exhibition', 'Other']
 
 type TaxItem = { description: string; hsnCode: string; unit: string; quantity: string }
