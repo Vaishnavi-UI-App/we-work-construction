@@ -1,9 +1,9 @@
 import React from 'react'
 import { COMPANY } from './InvoiceDocument'
 
-// Minimum number of item rows to render (blank rows fill out the rest), matching
-// the look of the company's pre-printed paper challan pad.
-const MIN_ROWS = 10
+// Always append 5 blank rows after the real items, matching the look of the
+// company's pre-printed paper challan pad — regardless of item count.
+const EXTRA_ROWS = 5
 
 const cell: React.CSSProperties = { border: '1px solid #000', padding: '5px 8px', fontSize: 13, verticalAlign: 'top' }
 const label: React.CSSProperties = { fontSize: 12, color: '#333' }
@@ -21,7 +21,7 @@ function MetaRow({ text, val }: { text: string; val: React.ReactNode }) {
 export default function SimpleChallanDocument({ challan }: { challan: any }) {
   const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.') : ''
   const items: any[] = challan.items || []
-  const blankRows = Math.max(0, MIN_ROWS - items.length)
+  const blankRows = EXTRA_ROWS
 
   const th: React.CSSProperties = { ...cell, fontWeight: 700, textAlign: 'center', background: '#f2f2f2' }
   const numCell: React.CSSProperties = { ...cell, textAlign: 'center', whiteSpace: 'nowrap' }

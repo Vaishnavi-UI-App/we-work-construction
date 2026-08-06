@@ -46,14 +46,14 @@ function MetaCell({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-// Minimum item rows to render — blank rows pad out short lists so a 2-3 item
-// invoice doesn't print as a mostly-empty, oddly short page.
-const MIN_ROWS = 8
+// Always append 5 blank rows after the real items, matching the look of a
+// pre-printed pad — regardless of how many items are on the invoice.
+const EXTRA_ROWS = 5
 
 export default function InvoiceDocument({ bill }: { bill: any }) {
   const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
   const items: any[] = bill.items || []
-  const blankRows = Math.max(0, MIN_ROWS - items.length)
+  const blankRows = EXTRA_ROWS
   const gstRate = bill.gstRate || 0
 
   const shipToName = bill.shipToName || bill.billToName
