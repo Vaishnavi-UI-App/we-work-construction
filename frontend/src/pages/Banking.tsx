@@ -1,9 +1,12 @@
 import React from 'react'
 import { fetchBankingSummary, fetchPayments, addPayment, deletePayment, fetchCustomers, downloadBankingReport } from '../api'
-import { Plus, Landmark, TrendingUp, TrendingDown, Wallet, Search, X, Trash2, History, Download } from 'lucide-react'
+import { Plus, Landmark, TrendingUp, TrendingDown, Wallet, Search, X, Trash2, History, Download, FileText } from 'lucide-react'
 import { FaWhatsapp } from 'react-icons/fa'
 import { SiGmail } from 'react-icons/si'
 import toast from 'react-hot-toast'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+import BankingReportDocument from '../components/BankingReportDocument'
 
 const METHODS = ['Cash', 'Bank Transfer', 'UPI', 'Cheque', 'Card', 'Other']
 
@@ -204,7 +207,10 @@ export default function Banking() {
   const [showAdd, setShowAdd] = React.useState(false)
   const [historyFor, setHistoryFor] = React.useState<any>(null)
   const [downloading, setDownloading] = React.useState(false)
+  const [downloadingPdf, setDownloadingPdf] = React.useState(false)
   const [downloadCustomer, setDownloadCustomer] = React.useState('')
+  const [pdfCapture, setPdfCapture] = React.useState<{ rows: any[]; single?: any; payments?: any[] } | null>(null)
+  const pdfCaptureRef = React.useRef<HTMLDivElement>(null)
 
   function load() {
     setLoading(true)
@@ -222,6 +228,47 @@ export default function Banking() {
     }
     catch { toast.error('Failed to download report') }
     finally { setDownloading(false) }
+  }
+
+  async function handleDownloadPdf() {
+    setDownloadingPdf(true)
+    try {
+      const single = downloadCustomer ? summary.find((s: any) => s.customerName === downloadCustomer) : undefined
+      const payments = single ? await fetchPayments(downloadCustomer) : undefined
+      setPdfCapture({ rows: summary, single, payments })
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const node = pdfCaptureRef.current
+      if (!node) throw new Error('capture container not ready')
+
+      const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+      const imgData = canvas.toDataURL('image/png')
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pageWidth
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+      let position = 0
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+      while (heightLeft > 0) {
+        position -= pageHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      const filename = downloadCustomer ? `${downloadCustomer.replace(/[^a-z0-9]+/gi, '-')}-ledger.pdf` : 'customer-ledger.pdf'
+      pdf.save(filename)
+      toast.success(downloadCustomer ? `${downloadCustomer}'s PDF downloaded` : 'PDF downloaded')
+    } catch (err: any) {
+      console.error('PDF download failed:', err)
+      toast.error('Failed to generate PDF')
+    } finally {
+      setPdfCapture(null)
+      setDownloadingPdf(false)
+    }
   }
 
   const filtered = summary.filter((s: any) => !search || s.customerName.toLowerCase().includes(search.toLowerCase()))
@@ -246,7 +293,11 @@ export default function Banking() {
           </select>
           <button onClick={handleDownload} disabled={downloading} className="btn-secondary flex items-center gap-2">
             {downloading ? <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" /> : <Download size={16} />}
-            Download Report
+            Download Excel
+          </button>
+          <button onClick={handleDownloadPdf} disabled={downloadingPdf} className="btn-secondary flex items-center gap-2">
+            {downloadingPdf ? <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" /> : <FileText size={16} />}
+            Download PDF
           </button>
           <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2">
             <Plus size={16} /> Record Payment
@@ -349,6 +400,14 @@ export default function Banking() {
       )}
       {historyFor && (
         <HistoryDrawer customer={historyFor} onClose={() => setHistoryFor(null)} onChanged={load} />
+      )}
+
+      {pdfCapture && (
+        <div style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999, background: '#fff' }}>
+          <div ref={pdfCaptureRef} style={{ width: 860, background: '#fff' }}>
+            <BankingReportDocument rows={pdfCapture.rows} single={pdfCapture.single} payments={pdfCapture.payments} />
+          </div>
+        </div>
       )}
     </div>
   )
