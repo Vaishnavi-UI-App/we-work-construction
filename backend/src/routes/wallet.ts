@@ -126,6 +126,38 @@ export default function (prisma: PrismaClient) {
     }
   });
 
+  // Delete a company fund entry — reverses its effect on the wallet's running totals first.
+  router.delete('/fund/:id', requirePermission('tracker', 'canDelete'), async (req: any, res) => {
+    const id = Number(req.params.id);
+    try {
+      const existing = await prisma.fundAllocation.findUnique({ where: { id } });
+      if (!existing) return res.status(404).json({ error: 'Fund entry not found' });
+      if (!req.access.allSites && existing.siteId !== req.access.siteId) {
+        return res.status(403).json({ error: 'You can only delete funds for your assigned branch' });
+      }
+
+      const addedToBalance = existing.amount - existing.reimbursedAmount;
+
+      await prisma.$transaction([
+        prisma.siteWallet.update({
+          where: { siteId: existing.siteId },
+          data: {
+            companyBalance: { decrement: addedToBalance },
+            totalFundsReceived: { decrement: existing.amount },
+            totalPersonalReimbursed: { decrement: existing.reimbursedAmount },
+          },
+        }),
+        prisma.fundAllocation.delete({ where: { id } }),
+      ]);
+
+      const updatedWallet = await prisma.siteWallet.findUnique({ where: { siteId: existing.siteId } });
+      res.json({ ok: true, wallet: updatedWallet });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to delete fund entry' });
+    }
+  });
+
   // Ordered-by people master list (for the "Ordered By" dropdown on expenses)
   router.get('/ordered-by', requirePermission('tracker', 'canView'), async (_req, res) => {
     try {

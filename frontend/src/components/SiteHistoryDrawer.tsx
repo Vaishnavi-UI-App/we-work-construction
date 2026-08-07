@@ -2,7 +2,7 @@ import React from 'react'
 import toast from 'react-hot-toast'
 import {
   fetchSiteHistory, fetchExpenseCategories, fetchOrderedByPeople,
-  updateTrackedExpense, deleteTrackedExpense,
+  updateTrackedExpense, deleteTrackedExpense, deleteTrackedFund,
 } from '../api'
 import { X, ArrowDownCircle, ArrowUpCircle, CheckCircle, Image, User, Pencil, Trash2 } from 'lucide-react'
 
@@ -140,6 +140,18 @@ export default function SiteHistoryDrawer({ site, onClose, onChanged }: { site: 
     }
   }
 
+  async function removeFund(tx: any) {
+    if (!confirm('Delete this company fund entry? This reverses its effect on the site wallet.')) return
+    try {
+      await deleteTrackedFund(tx.id)
+      toast.success('Fund entry deleted')
+      load()
+      onChanged?.()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to delete fund entry')
+    }
+  }
+
   const w = data?.wallet || {}
 
   return (
@@ -227,6 +239,13 @@ export default function SiteHistoryDrawer({ site, onClose, onChanged }: { site: 
                           <Pencil size={14} />
                         </button>
                         <button onClick={() => remove(tx)} title="Delete expense" className="text-slate-400 hover:text-red-500 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                    {tx.txType === 'FUND' && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <button onClick={() => removeFund(tx)} title="Delete fund entry" className="text-slate-400 hover:text-red-500 transition-colors">
                           <Trash2 size={14} />
                         </button>
                       </div>
