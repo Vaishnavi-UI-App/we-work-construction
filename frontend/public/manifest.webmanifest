@@ -1,0 +1,16 @@
+{
+  "name": "We Work Constructions",
+  "short_name": "We Work",
+  "description": "We Work Constructions — billing, delivery challans, expenses, banking and attendance.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1120",
+  "theme_color": "#e07b1e",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+  ]
+}
