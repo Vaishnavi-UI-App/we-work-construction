@@ -27,9 +27,12 @@ model Bill {
   shipToGst     String?
   shipToState   String?
 
-  // Order / project references
+  // Order / project references — label is switchable between "PO Number"/"WO Number"
+  // (purchase order vs. work order) since the site uses both depending on the job.
   poNumber      String?
+  poNumberLabel String?  @default("PO Number")
   poDate        String?
+  poDateLabel   String?  @default("PO Date")
   vendorCode    String?
   projectCode   String?
   projectName   String?
@@ -37,7 +40,6 @@ model Bill {
   // Dispatch / transport details
   dateOfSupply     DateTime?
   placeOfSupply    String?
-  reverseCharge    String?  @default("NO")
   vehicleNumber    String?
   transportMode    String?
   siteName         String?
@@ -87,7 +89,9 @@ model DeliveryChallan {
   shipToState    String?
 
   poNumber       String?
+  poNumberLabel  String?  @default("PO Number")
   poDate         String?
+  poDateLabel    String?  @default("PO Date")
   purpose        String?  @default("Delivery")
   dateOfSupply   DateTime?
   placeOfSupply  String?

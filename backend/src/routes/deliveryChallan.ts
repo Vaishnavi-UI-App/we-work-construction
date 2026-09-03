@@ -50,7 +50,7 @@ export default function (prisma: PrismaClient) {
       const {
         challanNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
         shipToName, shipToAddress, shipToGst, shipToState,
-        poNumber, poDate, purpose, dateOfSupply, placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
+        poNumber, poNumberLabel, poDate, poDateLabel, purpose, dateOfSupply, placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
         items,
       } = req.body
 
@@ -82,7 +82,7 @@ export default function (prisma: PrismaClient) {
           billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
           shipToName: shipToName || null, shipToAddress: shipToAddress || null,
           shipToGst: shipToGst || null, shipToState: shipToState || null,
-          poNumber, poDate, purpose: purpose || 'Delivery',
+          poNumber, poNumberLabel, poDate, poDateLabel, purpose: purpose || 'Delivery',
           dateOfSupply: dateOfSupply ? new Date(dateOfSupply) : (date ? new Date(date) : new Date()),
           placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
           items: { create: computedItems },
@@ -108,7 +108,7 @@ export default function (prisma: PrismaClient) {
       const {
         challanNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
         shipToName, shipToAddress, shipToGst, shipToState,
-        poNumber, poDate, purpose, dateOfSupply, placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
+        poNumber, poNumberLabel, poDate, poDateLabel, purpose, dateOfSupply, placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
         items,
       } = req.body
 
@@ -142,7 +142,7 @@ export default function (prisma: PrismaClient) {
             billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
             shipToName: shipToName || null, shipToAddress: shipToAddress || null,
             shipToGst: shipToGst || null, shipToState: shipToState || null,
-            poNumber, poDate, purpose: purpose || 'Delivery',
+            poNumber, poNumberLabel, poDate, poDateLabel, purpose: purpose || 'Delivery',
             dateOfSupply: dateOfSupply ? new Date(dateOfSupply) : existing.dateOfSupply,
             placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
             items: { create: computedItems },

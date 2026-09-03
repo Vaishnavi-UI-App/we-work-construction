@@ -12,9 +12,9 @@ import DeleteReasonModal from '../components/DeleteReasonModal'
 
 const UNITS = ['EA', 'NOS', 'PCS', 'SET', 'MTR', 'RMT', 'SQM', 'SQF', 'KG', 'TON', 'LTR', 'BOX', 'ROLL', 'PKT', 'BAG', 'HRS', 'DAYS', 'LOT', 'LS', 'CUM']
 
-type Item = { description: string; hsnCode: string; unit: string; quantity: string; unitPrice: string }
+type Item = { lineNo: string; description: string; hsnCode: string; unit: string; quantity: string; unitPrice: string }
 
-const emptyItem = (): Item => ({ description: '', hsnCode: '', unit: 'EA', quantity: '', unitPrice: '' })
+const emptyItem = (): Item => ({ lineNo: '', description: '', hsnCode: '', unit: 'EA', quantity: '', unitPrice: '' })
 
 function buildShareMessage(bill: any) {
   const amount = `₹${Number(bill.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -58,13 +58,14 @@ export default function Billing() {
   const [shipToGst, setShipToGst] = React.useState('')
   const [shipToState, setShipToState] = React.useState('')
   const [poNumber, setPoNumber] = React.useState('')
+  const [poNumberLabel, setPoNumberLabel] = React.useState('PO Number')
   const [poDate, setPoDate] = React.useState('')
+  const [poDateLabel, setPoDateLabel] = React.useState('PO Date')
   const [vendorCode, setVendorCode] = React.useState('')
   const [projectCode, setProjectCode] = React.useState('')
   const [projectName, setProjectName] = React.useState('')
   const [dateOfSupply, setDateOfSupply] = React.useState('')
   const [placeOfSupply, setPlaceOfSupply] = React.useState('Maharashtra')
-  const [reverseCharge, setReverseCharge] = React.useState('NO')
   const [vehicleNumber, setVehicleNumber] = React.useState('')
   const [transportMode, setTransportMode] = React.useState('Road')
   const [siteName, setSiteName] = React.useState('')
@@ -112,17 +113,18 @@ export default function Billing() {
     setSameAsBilling(!hasShipTo)
     setShipToName(bill.shipToName || ''); setShipToAddress(bill.shipToAddress || '')
     setShipToGst(bill.shipToGst || ''); setShipToState(bill.shipToState || '')
-    setPoNumber(bill.poNumber || ''); setPoDate(bill.poDate || '')
+    setPoNumber(bill.poNumber || ''); setPoNumberLabel(bill.poNumberLabel || 'PO Number')
+    setPoDate(bill.poDate || ''); setPoDateLabel(bill.poDateLabel || 'PO Date')
     setVendorCode(bill.vendorCode || ''); setProjectCode(bill.projectCode || ''); setProjectName(bill.projectName || '')
     setDateOfSupply(bill.dateOfSupply ? new Date(bill.dateOfSupply).toISOString().slice(0, 10) : '')
-    setPlaceOfSupply(bill.placeOfSupply || 'Maharashtra'); setReverseCharge(bill.reverseCharge || 'NO')
+    setPlaceOfSupply(bill.placeOfSupply || 'Maharashtra')
     setVehicleNumber(bill.vehicleNumber || ''); setTransportMode(bill.transportMode || 'Road')
     setSiteName(bill.siteName || ''); setDeliveredThrough(bill.deliveredThrough || '')
     setGstRate(bill.gstRate ?? 9)
     setItems(
       (bill.items || []).length
         ? bill.items.map((it: any) => ({
-            description: it.description || '', hsnCode: it.hsnCode || '',
+            lineNo: String(it.lineNo ?? ''), description: it.description || '', hsnCode: it.hsnCode || '',
             unit: it.unit || 'EA', quantity: String(it.quantity ?? ''), unitPrice: String(it.unitPrice ?? ''),
           }))
         : [emptyItem()]
@@ -190,12 +192,12 @@ export default function Billing() {
         shipToAddress: sameAsBilling ? '' : shipToAddress,
         shipToGst: sameAsBilling ? '' : shipToGst,
         shipToState: sameAsBilling ? '' : shipToState,
-        poNumber, poDate, vendorCode, projectCode, projectName,
-        dateOfSupply: dateOfSupply || date, placeOfSupply, reverseCharge,
+        poNumber, poNumberLabel, poDate, poDateLabel, vendorCode, projectCode, projectName,
+        dateOfSupply: dateOfSupply || date, placeOfSupply,
         vehicleNumber, transportMode, siteName, deliveredThrough,
         gstRate,
         items: valid.map((it, i) => ({
-          lineNo: i + 1, description: it.description, hsnCode: it.hsnCode,
+          lineNo: Number(it.lineNo) || (i + 1), description: it.description, hsnCode: it.hsnCode,
           unit: it.unit, quantity: Number(it.quantity) || 0, unitPrice: Number(it.unitPrice) || 0,
         })),
       }
@@ -404,8 +406,24 @@ export default function Billing() {
           <div className="md:col-span-2 border-t border-slate-200 dark:border-white/10 pt-3">
             <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Order Reference</p>
           </div>
-          <div><label className="label">PO Number</label><input className="input" value={poNumber} onChange={e => setPoNumber(e.target.value)} /></div>
-          <div><label className="label">PO Date</label><input className="input" value={poDate} onChange={e => setPoDate(e.target.value)} placeholder="24.06.2026" /></div>
+          <div>
+            <label className="label">
+              <select className="inline-block w-auto bg-transparent border-0 p-0 cursor-pointer" style={{ font: 'inherit', color: 'inherit' }} value={poNumberLabel} onChange={e => setPoNumberLabel(e.target.value)}>
+                <option value="PO Number">PO Number</option>
+                <option value="WO Number">WO Number</option>
+              </select>
+            </label>
+            <input className="input" value={poNumber} onChange={e => setPoNumber(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">
+              <select className="inline-block w-auto bg-transparent border-0 p-0 cursor-pointer" style={{ font: 'inherit', color: 'inherit' }} value={poDateLabel} onChange={e => setPoDateLabel(e.target.value)}>
+                <option value="PO Date">PO Date</option>
+                <option value="WO Date">WO Date</option>
+              </select>
+            </label>
+            <input className="input" value={poDate} onChange={e => setPoDate(e.target.value)} placeholder="24.06.2026" />
+          </div>
           <div><label className="label">Vendor Code</label><input className="input" value={vendorCode} onChange={e => setVendorCode(e.target.value)} /></div>
           <div><label className="label">Project Code</label><input className="input" value={projectCode} onChange={e => setProjectCode(e.target.value)} /></div>
           <div className="md:col-span-2"><label className="label">Project Name</label><input className="input" value={projectName} onChange={e => setProjectName(e.target.value)} /></div>
@@ -415,13 +433,6 @@ export default function Billing() {
           </div>
           <div><label className="label">Date Of Supply</label><input type="date" className="input" value={dateOfSupply} onChange={e => setDateOfSupply(e.target.value)} /></div>
           <div><label className="label">Place of Supply</label><input className="input" value={placeOfSupply} onChange={e => setPlaceOfSupply(e.target.value)} placeholder="Maharashtra" /></div>
-          <div>
-            <label className="label">Reverse Charge</label>
-            <select className="input" value={reverseCharge} onChange={e => setReverseCharge(e.target.value)}>
-              <option value="NO">NO</option>
-              <option value="YES">YES</option>
-            </select>
-          </div>
           <div><label className="label">Transportation Mode</label><input className="input" value={transportMode} onChange={e => setTransportMode(e.target.value)} placeholder="Road" /></div>
           <div><label className="label">Vehicle Number</label><input className="input" value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value)} placeholder="MH12VF9823" /></div>
           <div><label className="label">Place Of Supply (Site)</label><input className="input" value={siteName} onChange={e => setSiteName(e.target.value)} placeholder="SITE- SHRIRAMPUR" /></div>
@@ -460,8 +471,9 @@ export default function Billing() {
               <tbody>
                 {items.map((it, idx) => (
                   <tr key={idx} className="border-b border-slate-100 dark:border-white/5">
-                    <td className="py-1.5 pr-2 text-center text-slate-500 dark:text-slate-400 font-medium tabular-nums">
-                      {idx + 1}
+                    <td className="py-1.5 pr-2">
+                      <input className="input no-spinner !py-1.5 !px-2 text-center tabular-nums" type="number" inputMode="numeric"
+                        value={it.lineNo} onChange={e => updateItem(idx, { lineNo: e.target.value })} placeholder={String(idx + 1)} />
                     </td>
                     <td className="py-1.5 pr-2">
                       <input className="input !py-1.5 !px-2" list="hsn-products" value={it.description}

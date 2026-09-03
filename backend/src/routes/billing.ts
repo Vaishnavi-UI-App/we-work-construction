@@ -91,8 +91,8 @@ export default function (prisma: PrismaClient) {
       const {
         invoiceNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
         shipToName, shipToAddress, shipToGst, shipToState,
-        poNumber, poDate, vendorCode, projectCode, projectName,
-        dateOfSupply, placeOfSupply, reverseCharge, vehicleNumber, transportMode, siteName, deliveredThrough,
+        poNumber, poNumberLabel, poDate, poDateLabel, vendorCode, projectCode, projectName,
+        dateOfSupply, placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
         gstRate, items,
       } = req.body
 
@@ -138,9 +138,9 @@ export default function (prisma: PrismaClient) {
           billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
           shipToName: shipToName || null, shipToAddress: shipToAddress || null,
           shipToGst: shipToGst || null, shipToState: shipToState || null,
-          poNumber, poDate, vendorCode, projectCode, projectName,
+          poNumber, poNumberLabel, poDate, poDateLabel, vendorCode, projectCode, projectName,
           dateOfSupply: dateOfSupply ? new Date(dateOfSupply) : (date ? new Date(date) : new Date()),
-          placeOfSupply, reverseCharge: reverseCharge || 'NO', vehicleNumber, transportMode, siteName, deliveredThrough,
+          placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
           gstRate: rate, subtotal, cgst, sgst, total, amountInWords,
           items: { create: computedItems },
         },
@@ -177,8 +177,8 @@ export default function (prisma: PrismaClient) {
       const {
         invoiceNumber, date, billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
         shipToName, shipToAddress, shipToGst, shipToState,
-        poNumber, poDate, vendorCode, projectCode, projectName,
-        dateOfSupply, placeOfSupply, reverseCharge, vehicleNumber, transportMode, siteName, deliveredThrough,
+        poNumber, poNumberLabel, poDate, poDateLabel, vendorCode, projectCode, projectName,
+        dateOfSupply, placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
         gstRate, items,
       } = req.body
 
@@ -227,9 +227,9 @@ export default function (prisma: PrismaClient) {
             billToName, billToAddress, billToGst, billToMobile, billToEmail, billToState,
             shipToName: shipToName || null, shipToAddress: shipToAddress || null,
             shipToGst: shipToGst || null, shipToState: shipToState || null,
-            poNumber, poDate, vendorCode, projectCode, projectName,
+            poNumber, poNumberLabel, poDate, poDateLabel, vendorCode, projectCode, projectName,
             dateOfSupply: dateOfSupply ? new Date(dateOfSupply) : existing.dateOfSupply,
-            placeOfSupply, reverseCharge: reverseCharge || 'NO', vehicleNumber, transportMode, siteName, deliveredThrough,
+            placeOfSupply, vehicleNumber, transportMode, siteName, deliveredThrough,
             gstRate: rate, subtotal, cgst, sgst, total, amountInWords,
             items: { create: computedItems },
           },

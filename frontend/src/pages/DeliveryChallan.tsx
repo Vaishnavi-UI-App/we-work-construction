@@ -203,7 +203,9 @@ function TaxCreateForm({ editing, onDone, onCancel }: { editing?: any; onDone: (
   const [shipToGst, setShipToGst] = React.useState(editing?.shipToGst || '')
   const [shipToState, setShipToState] = React.useState(editing?.shipToState || '')
   const [poNumber, setPoNumber] = React.useState(editing?.poNumber || '')
+  const [poNumberLabel, setPoNumberLabel] = React.useState(editing?.poNumberLabel || 'PO Number')
   const [poDate, setPoDate] = React.useState(editing?.poDate || '')
+  const [poDateLabel, setPoDateLabel] = React.useState(editing?.poDateLabel || 'PO Date')
   const [purpose, setPurpose] = React.useState(editing?.purpose || 'Delivery')
   const [dateOfSupply, setDateOfSupply] = React.useState(editing?.dateOfSupply ? new Date(editing.dateOfSupply).toISOString().slice(0, 10) : '')
   const [placeOfSupply, setPlaceOfSupply] = React.useState(editing?.placeOfSupply || 'Maharashtra')
@@ -241,7 +243,7 @@ function TaxCreateForm({ editing, onDone, onCancel }: { editing?: any; onDone: (
         shipToAddress: sameAsBilling ? '' : shipToAddress,
         shipToGst: sameAsBilling ? '' : shipToGst,
         shipToState: sameAsBilling ? '' : shipToState,
-        poNumber, poDate, purpose,
+        poNumber, poNumberLabel, poDate, poDateLabel, purpose,
         dateOfSupply: dateOfSupply || date, placeOfSupply,
         vehicleNumber, transportMode, siteName, deliveredThrough,
         items: valid.map((it, i) => ({ lineNo: i + 1, description: it.description, hsnCode: it.hsnCode, unit: it.unit, quantity: Number(it.quantity) || 0 })),
@@ -320,8 +322,24 @@ function TaxCreateForm({ editing, onDone, onCancel }: { editing?: any; onDone: (
         <div className="md:col-span-2 border-t border-slate-200 dark:border-white/10 pt-3">
           <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Order Reference</p>
         </div>
-        <div><label className="label">PO Number</label><input className="input" value={poNumber} onChange={e => setPoNumber(e.target.value)} /></div>
-        <div><label className="label">PO Date</label><input className="input" value={poDate} onChange={e => setPoDate(e.target.value)} placeholder="24.06.2026" /></div>
+        <div>
+          <label className="label">
+            <select className="inline-block w-auto bg-transparent border-0 p-0 cursor-pointer" style={{ font: 'inherit', color: 'inherit' }} value={poNumberLabel} onChange={e => setPoNumberLabel(e.target.value)}>
+              <option value="PO Number">PO Number</option>
+              <option value="WO Number">WO Number</option>
+            </select>
+          </label>
+          <input className="input" value={poNumber} onChange={e => setPoNumber(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">
+            <select className="inline-block w-auto bg-transparent border-0 p-0 cursor-pointer" style={{ font: 'inherit', color: 'inherit' }} value={poDateLabel} onChange={e => setPoDateLabel(e.target.value)}>
+              <option value="PO Date">PO Date</option>
+              <option value="WO Date">WO Date</option>
+            </select>
+          </label>
+          <input className="input" value={poDate} onChange={e => setPoDate(e.target.value)} placeholder="24.06.2026" />
+        </div>
         <div>
           <label className="label">Purpose</label>
           <select className="input" value={purpose} onChange={e => setPurpose(e.target.value)}>

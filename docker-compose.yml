@@ -13,8 +13,10 @@ services:
       EMAIL_PASS: ${EMAIL_PASS:-}
       PORT: 4001
       NODE_ENV: production
-    # push schema, seed once (|| true so re-runs don't crash on existing data), then start
-    command: sh -c "npx prisma db push && (npm run seed || true) && node dist/index.js"
+    # push schema (--accept-data-loss so a destructive column change, e.g. a
+    # dropped field, doesn't crash-loop the container on startup), seed once
+    # (|| true so re-runs don't crash on existing data), then start
+    command: sh -c "npx prisma db push --accept-data-loss && (npm run seed || true) && node dist/index.js"
     volumes:
       - sqlite_data:/app/data
       - uploads_data:/uploads

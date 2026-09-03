@@ -65,8 +65,8 @@ export default function ChallanDocument({ challan }: { challan: any }) {
           <MetaCell label="Place of Supply" value={challan.placeOfSupply} />
           <MetaCell label="Date Of Supply" value={fmtDate(challan.dateOfSupply || challan.date)} />
           <MetaCell label="Purpose" value={challan.purpose || 'Delivery'} />
-          <MetaCell label="PO Number" value={challan.poNumber} />
-          <MetaCell label="PO Date" value={challan.poDate} />
+          <MetaCell label={challan.poNumberLabel || 'PO Number'} value={challan.poNumber} />
+          <MetaCell label={challan.poDateLabel || 'PO Date'} value={challan.poDate} />
           <MetaCell label="Vehicle Number" value={challan.vehicleNumber} />
           <MetaCell label="Transportation Mode" value={challan.transportMode} />
           <div style={{ gridColumn: '1 / span 3', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>

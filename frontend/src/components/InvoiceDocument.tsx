@@ -103,9 +103,8 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
           <MetaCell label="Invoice Date" value={fmtDate(bill.date)} />
           <MetaCell label="Place of Supply" value={bill.placeOfSupply} />
           <MetaCell label="Date Of Supply" value={fmtDate(bill.dateOfSupply || bill.date)} />
-          <MetaCell label="Reverse Charge" value={bill.reverseCharge || 'NO'} />
-          <MetaCell label="PO Number" value={bill.poNumber} />
-          <MetaCell label="PO Date" value={bill.poDate} />
+          <MetaCell label={bill.poNumberLabel || 'PO Number'} value={bill.poNumber} />
+          <MetaCell label={bill.poDateLabel || 'PO Date'} value={bill.poDate} />
           <MetaCell label="Vehicle Number" value={bill.vehicleNumber} />
           <MetaCell label="Transportation Mode" value={bill.transportMode} />
           <div style={{ gridColumn: '1 / span 3', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
@@ -164,7 +163,7 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
             const lineTotal = it.amount + cgstAmt + sgstAmt
             return (
               <tr key={i}>
-                <td style={{ ...numCell, textAlign: 'center' }}>{i + 1}</td>
+                <td style={{ ...numCell, textAlign: 'center' }}>{it.lineNo || i + 1}</td>
                 <td style={cell}>{it.description}</td>
                 <td style={{ ...numCell, textAlign: 'center' }}>{it.hsnCode}</td>
                 <td style={{ ...numCell, textAlign: 'center' }}>{it.quantity}</td>
@@ -228,7 +227,7 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
         </div>
       </div>
 
-      {/* Bank + signature */}
+      {/* Bank + receiver sign + authorised signatory */}
       <div style={{ display: 'flex', borderBottom: '1px solid #000' }}>
         <div style={{ flex: 1, padding: '10px 14px', borderRight: '1px solid #000', fontSize: 13 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>🏦 Bank and Payment Details</div>
@@ -237,6 +236,10 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
           <div>IFSC Code &nbsp; <strong>{COMPANY.bankIfsc}</strong></div>
           <div>Bank Name &nbsp; <strong>{COMPANY.bankName}</strong></div>
           <div>Branch Name &nbsp; <strong>{COMPANY.bankBranch}</strong></div>
+        </div>
+        <div style={{ flex: 1, padding: '10px 14px', borderRight: '1px solid #000', fontSize: 13 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Goods Received In Good Condition</div>
+          <div style={{ marginTop: 30 }}>Receiver's Signature: ____________________</div>
         </div>
         <div style={{ flex: 1, padding: '10px 14px', fontSize: 13, textAlign: 'right' }}>
           <div>Certified that the particulars given above are true and correct for,</div>
