@@ -89,8 +89,9 @@ export default function Billing() {
     setInvoiceNumber(''); setDate(new Date().toISOString().slice(0, 10))
     setBillToName(''); setBillToAddress(''); setBillToGst(''); setBillToMobile(''); setBillToEmail(''); setBillToState('Maharashtra')
     setSameAsBilling(true); setShipToName(''); setShipToAddress(''); setShipToGst(''); setShipToState('')
-    setPoNumber(''); setPoDate(''); setVendorCode(''); setProjectCode(''); setProjectName('')
-    setDateOfSupply(''); setPlaceOfSupply('Maharashtra'); setReverseCharge('NO')
+    setPoNumber(''); setPoNumberLabel('PO Number'); setPoDate(''); setPoDateLabel('PO Date')
+    setVendorCode(''); setProjectCode(''); setProjectName('')
+    setDateOfSupply(''); setPlaceOfSupply('Maharashtra')
     setVehicleNumber(''); setTransportMode('Road'); setSiteName(''); setDeliveredThrough('')
     setGstRate(9); setItems([emptyItem()])
     try {

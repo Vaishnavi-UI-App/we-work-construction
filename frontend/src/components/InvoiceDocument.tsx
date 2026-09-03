@@ -105,8 +105,10 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
           <MetaCell label="Date Of Supply" value={fmtDate(bill.dateOfSupply || bill.date)} />
           <MetaCell label={bill.poNumberLabel || 'PO Number'} value={bill.poNumber} />
           <MetaCell label={bill.poDateLabel || 'PO Date'} value={bill.poDate} />
-          <MetaCell label="Vehicle Number" value={bill.vehicleNumber} />
-          <MetaCell label="Transportation Mode" value={bill.transportMode} />
+          <div style={{ gridColumn: '1 / span 3', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+            <MetaCell label="Vehicle Number" value={bill.vehicleNumber} />
+            <MetaCell label="Transportation Mode" value={bill.transportMode} />
+          </div>
           <div style={{ gridColumn: '1 / span 3', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
             <MetaCell label="Place Of Supply (Site)" value={bill.siteName} />
             <MetaCell label="Delivered Through" value={bill.deliveredThrough} />
@@ -239,7 +241,11 @@ export default function InvoiceDocument({ bill }: { bill: any }) {
         </div>
         <div style={{ flex: 1, padding: '10px 14px', borderRight: '1px solid #000', fontSize: 13 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Goods Received In Good Condition</div>
-          <div style={{ marginTop: 30 }}>Receiver's Signature: ____________________</div>
+          <div>&nbsp;</div>
+          <div>&nbsp;</div>
+          <div>&nbsp;</div>
+          <div>&nbsp;</div>
+          <div>Receiver's Signature: ____________________</div>
         </div>
         <div style={{ flex: 1, padding: '10px 14px', fontSize: 13, textAlign: 'right' }}>
           <div>Certified that the particulars given above are true and correct for,</div>
