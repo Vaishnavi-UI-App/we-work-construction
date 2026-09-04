@@ -163,6 +163,15 @@ body {
   border: 1px solid rgba(255,255,255,0.1);
 }
 
+/* On screen (including the html2canvas capture used for PDF downloads), these
+   documents render at their true fixed design width so the fixed-size header
+   and table never get squished by a narrow mobile viewport. In print (below),
+   .invoice-doc's own width:100% is left alone so it correctly scales down to
+   the real physical page width instead of overflowing past its right edge. */
+@media screen {
+  .invoice-doc { min-width: 860px; }
+}
+
 /* ---- Print: only the invoice document ---- */
 @media print {
   html, body { height: auto !important; }
