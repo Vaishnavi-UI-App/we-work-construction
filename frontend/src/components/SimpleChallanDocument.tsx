@@ -28,7 +28,7 @@ export default function SimpleChallanDocument({ challan }: { challan: any }) {
 
   return (
     <div className="invoice-doc" style={{
-      width: '100%', maxWidth: 860, boxSizing: 'border-box', margin: '0 auto', background: '#fff', color: '#000',
+      width: 860, boxSizing: 'border-box', margin: '0 auto', background: '#fff', color: '#000',
       fontFamily: 'Arial, Helvetica, sans-serif', border: '1px solid #000', padding: 0,
     }}>
       {/* Letterhead */}
