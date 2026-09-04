@@ -239,7 +239,11 @@ export default function Banking() {
       const node = pdfCaptureRef.current
       if (!node) throw new Error('capture container not ready')
 
-      const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+      // windowWidth forces html2canvas to lay out its clone at this fixed width
+      // regardless of the actual device screen — otherwise on a narrow phone
+      // screen the report's 860px design width collapses to fit, squishing the
+      // fixed-size header/table until content overflows and gets cut off.
+      const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: 900 })
       const imgData = canvas.toDataURL('image/png')
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })

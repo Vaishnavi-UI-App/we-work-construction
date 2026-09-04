@@ -237,7 +237,11 @@ export default function Billing() {
       const node = previewRef.current
       if (!node) throw new Error('preview not ready')
 
-      const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+      // windowWidth forces html2canvas to lay out its clone at this fixed width
+      // regardless of the actual device screen — otherwise on a narrow phone
+      // screen the invoice's 860px design width collapses to fit, squishing the
+      // fixed-size header/table until content overflows and gets cut off.
+      const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: 900 })
       const imgData = canvas.toDataURL('image/png')
 
       // A single page sized to fit the whole invoice, instead of slicing one tall
