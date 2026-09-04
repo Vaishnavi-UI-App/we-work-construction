@@ -1,7 +1,7 @@
 // Minimal service worker — its presence is one of the signals browsers use to
 // offer "Install app". Network-first so the ERP always shows live data;
 // falls back to a cached copy only when actually offline.
-const CACHE = 'wework-shell-v1';
+const CACHE = 'wework-shell-v2';
 const SHELL = ['/', '/manifest.webmanifest', '/logo.png'];
 
 self.addEventListener('install', (event) => {
