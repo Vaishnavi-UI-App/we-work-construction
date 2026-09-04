@@ -46,14 +46,16 @@ function MetaCell({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-// Always append 5 blank rows after the real items, matching the look of a
-// pre-printed pad — regardless of how many items are on the invoice.
-const EXTRA_ROWS = 5
+// Pad the table out to a reasonable minimum row count, matching the look of a
+// pre-printed pad — but only as many blank rows as needed to reach it (capped
+// at 5), so a bill with just a couple of items isn't left mostly empty space.
+const MIN_TOTAL_ROWS = 6
+const MAX_EXTRA_ROWS = 5
 
 export default function InvoiceDocument({ bill }: { bill: any }) {
   const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
   const items: any[] = bill.items || []
-  const blankRows = EXTRA_ROWS
+  const blankRows = Math.min(MAX_EXTRA_ROWS, Math.max(0, MIN_TOTAL_ROWS - items.length))
   const gstRate = bill.gstRate || 0
 
   const shipToName = bill.shipToName || bill.billToName
